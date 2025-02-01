@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:vehicle_maintenance_system/services/auth_service.dart';
-import 'package:vehicle_maintenance_system/screens/register_screen.dart';
-import 'package:vehicle_maintenance_system/screens/forgot_password_screen.dart';
-import 'package:vehicle_maintenance_system/screens/home_screen.dart';
+import 'package:dr_vehicle/services/auth_service.dart';
+import 'package:dr_vehicle/screens/register_screen.dart';
+import 'package:dr_vehicle/screens/forgot_password_screen.dart';
+import 'package:dr_vehicle/screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="vehicle_maintenance_system"
+        android:label="dr_vehicle"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
