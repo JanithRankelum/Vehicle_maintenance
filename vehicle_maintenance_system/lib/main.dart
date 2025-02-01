@@ -1,10 +1,10 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:vehicle_maintenance_system/screens/login_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:dr_vehicle/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(); // Ensure Firebase is initialized
   runApp(MyApp());
 }
 
@@ -12,11 +12,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Car Maintenance App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: LoginScreen(),
+      debugShowCheckedModeBanner: false,
+      title: 'Dr. Vehicle',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: SplashScreen(), // Set SplashScreen as the first screen
     );
   }
 }

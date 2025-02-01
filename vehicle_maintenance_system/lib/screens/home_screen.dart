@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:vehicle_maintenance_system/services/auth_service.dart';
+import 'package:dr_vehicle/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:vehicle_maintenance_system/screens/login_screen.dart';
+import 'package:dr_vehicle/screens/login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
