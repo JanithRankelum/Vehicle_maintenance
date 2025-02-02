@@ -29,10 +29,26 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF090E0F),
-      body: Center(
-        child: Image.asset('assets/logo/app1.gif', width: 500), // Local GIF
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Main Logo GIF
+          Expanded(
+            child: Center(
+              child: Image.asset('assets/logo/app1.gif', width: 500), // Main GIF
+            ),
+          ),
+
+          // Rotating Tire GIF at Bottom
+          Padding(
+            padding: EdgeInsets.only(bottom: 80),
+            child: Image.asset(
+              'assets/logo/tire.gif', // Replace with your rotating tire GIF path
+              width: 80,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
