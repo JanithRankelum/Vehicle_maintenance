@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dr_vehicle/services/auth_service.dart';
 import 'package:dr_vehicle/screens/login_screen.dart';
+import 'package:dr_vehicle/screens/vehicle_form_screen.dart';  // Import VehicleFormScreen
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -18,9 +19,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _passwordController.text.trim(),
     );
     if (user != null) {
+      // Navigate to VehicleFormScreen after successful registration
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+        MaterialPageRoute(builder: (context) => VehicleFormScreen()),  // Navigate to VehicleFormScreen
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -32,9 +34,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _registerWithGoogle() async {
     var user = await _authService.signInWithGoogle();
     if (user != null) {
+      // Navigate to VehicleFormScreen after successful Google login
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+        MaterialPageRoute(builder: (context) => VehicleFormScreen()),  // Navigate to VehicleFormScreen
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
