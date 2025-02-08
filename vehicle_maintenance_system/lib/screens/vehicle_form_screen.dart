@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';  // For formatting the date
+import 'package:intl/intl.dart';
 
 class VehicleFormScreen extends StatefulWidget {
+  final Map<String, dynamic>? vehicleData; // Accept existing vehicle data
+
+  VehicleFormScreen({this.vehicleData});
+
   @override
   _VehicleFormScreenState createState() => _VehicleFormScreenState();
 }
 
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Controllers
   final TextEditingController _ownerNameController = TextEditingController();
   final TextEditingController _vehicleNumberController = TextEditingController();
   final TextEditingController _vehicleCompanyController = TextEditingController();
@@ -20,30 +27,55 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final TextEditingController _lastServiceController = TextEditingController();
   final TextEditingController _otherMaintenanceController = TextEditingController();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicleData();
+  }
+
+  // Load existing vehicle data into controllers
+  void _loadVehicleData() {
+    if (widget.vehicleData != null) {
+      _ownerNameController.text = widget.vehicleData!['owner_name'] ?? '';
+      _vehicleNumberController.text = widget.vehicleData!['vehicle_number'] ?? '';
+      _vehicleCompanyController.text = widget.vehicleData!['vehicle_company'] ?? '';
+      _modelController.text = widget.vehicleData!['model'] ?? '';
+      _yearController.text = widget.vehicleData!['year'] ?? '';
+      _lastBrakeOilChangeController.text = _formatDate(widget.vehicleData!['last_brake_oil_change']);
+      _lastTireReplaceController.text = _formatDate(widget.vehicleData!['last_tire_replace']);
+      _lastServiceController.text = _formatDate(widget.vehicleData!['last_service']);
+      _otherMaintenanceController.text = widget.vehicleData!['other_maintenance'] ?? '';
+    }
+  }
+
+  // Function to format date safely
+  String _formatDate(dynamic date) {
+    if (date == null || date.isEmpty) return '';
+    try {
+      DateTime parsedDate = DateFormat('yyyy-MM-dd').parse(date);
+      return DateFormat('yyyy-MM-dd').format(parsedDate);
+    } catch (e) {
+      return date;
+    }
+  }
 
   // Function to show Date Picker
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
-    DateTime initialDate = DateTime.now();
-    DateTime firstDate = DateTime(1900); // Earliest date
-    DateTime lastDate = DateTime.now(); // Latest date
-
-    // Show date picker dialog
     DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
     );
 
-    // If a date is picked, update the controller
     if (pickedDate != null) {
       setState(() {
-        controller.text = DateFormat('yyyy-MM-dd').format(pickedDate); // Format the date
+        controller.text = DateFormat('yyyy-MM-dd').format(pickedDate);
       });
     }
   }
 
+  // Save or update vehicle data
   void _saveVehicleData() async {
     if (_formKey.currentState!.validate()) {
       String userId = _auth.currentUser!.uid;
@@ -58,15 +90,14 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         'last_tire_replace': _lastTireReplaceController.text,
         'last_service': _lastServiceController.text,
         'other_maintenance': _otherMaintenanceController.text,
-        'created_at': Timestamp.now(),
+        'updated_at': Timestamp.now(),
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vehicle details saved successfully!')),
+        SnackBar(content: Text('Vehicle details updated successfully!')),
       );
 
-      // Navigate to Home Screen after saving details
-      Navigator.pushReplacementNamed(context, '/home_screen');
+      Navigator.pop(context); // Return to Home Screen
     }
   }
 
@@ -81,64 +112,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                TextFormField(
-                  controller: _ownerNameController,
-                  decoration: InputDecoration(labelText: "Owner Name"),
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                ),
-                TextFormField(
-                  controller: _vehicleNumberController,
-                  decoration: InputDecoration(labelText: "Vehicle Number"),
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                ),
-                TextFormField(
-                  controller: _vehicleCompanyController,
-                  decoration: InputDecoration(labelText: "Vehicle Company"),
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                ),
-                TextFormField(
-                  controller: _modelController,
-                  decoration: InputDecoration(labelText: "Model"),
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                ),
-                TextFormField(
-                  controller: _yearController,
-                  decoration: InputDecoration(labelText: "Year"),
-                  keyboardType: TextInputType.number,
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                ),
-                TextFormField(
-                  controller: _lastBrakeOilChangeController,
-                  decoration: InputDecoration(labelText: "Last Brake-Oil Change Date"),
-                  keyboardType: TextInputType.datetime,
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                  onTap: () {
-                    _selectDate(context, _lastBrakeOilChangeController); // Show Date Picker
-                  },
-                ),
-                TextFormField(
-                  controller: _lastTireReplaceController,
-                  decoration: InputDecoration(labelText: "Last Tire Replace Date"),
-                  keyboardType: TextInputType.datetime,
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                  onTap: () {
-                    _selectDate(context, _lastTireReplaceController); // Show Date Picker
-                  },
-                ),
-                TextFormField(
-                  controller: _lastServiceController,
-                  decoration: InputDecoration(labelText: "Last Service Date"),
-                  keyboardType: TextInputType.datetime,
-                  validator: (value) => value!.isEmpty ? "Required" : null,
-                  onTap: () {
-                    _selectDate(context, _lastServiceController); // Show Date Picker
-                  },
-                ),
-                TextFormField(
-                  controller: _otherMaintenanceController,
-                  decoration: InputDecoration(labelText: "Other Maintenance"),
-                  maxLines: 3,
-                ),
+                _buildTextField("Owner Name", _ownerNameController),
+                _buildTextField("Vehicle Number", _vehicleNumberController),
+                _buildTextField("Vehicle Company", _vehicleCompanyController),
+                _buildTextField("Model", _modelController),
+                _buildTextField("Year", _yearController, keyboardType: TextInputType.number),
+                _buildDateField("Last Brake-Oil Change", _lastBrakeOilChangeController),
+                _buildDateField("Last Tire Replace", _lastTireReplaceController),
+                _buildDateField("Last Service", _lastServiceController),
+                _buildTextField("Other Maintenance", _otherMaintenanceController, maxLines: 3),
                 SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _saveVehicleData,
@@ -149,6 +131,30 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Common text field builder
+  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(labelText: label),
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: (value) => value!.isEmpty ? "Required" : null,
+    );
+  }
+
+  // Common date field builder
+  Widget _buildDateField(String label, TextEditingController controller) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: Icon(Icons.calendar_today),
+      ),
+      readOnly: true, // Prevents keyboard from showing
+      onTap: () => _selectDate(context, controller),
     );
   }
 }
