@@ -78,15 +78,41 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Function for logout
+  // Function for logout with confirmation dialog
   void _logout() async {
-    try {
-      await _auth.signOut();
-      Navigator.of(context).pushNamedAndRemoveUntil('/login_screen', (route) => false);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Logout failed: ${e.toString()}")),
-      );
+    bool confirmLogout = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmLogout == true) {
+      try {
+        await _auth.signOut();
+        Navigator.of(context).pushNamedAndRemoveUntil('/login_screen', (route) => false);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Logout failed: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -97,8 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text("Home"),
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: _logout, // Call logout function
+            icon: Icon(Icons.exit_to_app), // Updated icon
+            tooltip: 'Logout', // Tooltip for better UX
+            onPressed: _logout, // Call logout function with confirmation
           ),
         ],
       ),
@@ -146,8 +173,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildDetailRow("Owner Name", vehicleData['owner_name']),
                   _buildDetailRow("Vehicle Number", vehicleData['vehicle_number']),
                   _buildDetailRow("Vehicle Company", vehicleData['vehicle_company']),
+                  _buildDetailRow("Vehicle Type", vehicleData['vehicle_type']),
                   _buildDetailRow("Model", vehicleData['model']),
                   _buildDetailRow("Year", vehicleData['year']),
+                  _buildDetailRow("Registration Number", vehicleData['registration_number']),
+                  _buildDetailRow("Engine Number", vehicleData['engine_number']),
+                  _buildDetailRow("Chassis Number", vehicleData['chassis_number']),
+                  _buildDetailRow("Insurance Company", vehicleData['insurance_company']),
+                  _buildDetailRow("Insurance Policy Number", vehicleData['insurance_policy_number']),
+                  _buildDetailRow("Insurance Expiry", formatDate(vehicleData['insurance_expiry'])),
                   _buildDetailRow("Last Brake Oil Change", formatDate(vehicleData['last_brake_oil_change'])),
                   _buildDetailRow("Last Tire Replace", formatDate(vehicleData['last_tire_replace'])),
                   _buildDetailRow("Last Service", formatDate(vehicleData['last_service'])),

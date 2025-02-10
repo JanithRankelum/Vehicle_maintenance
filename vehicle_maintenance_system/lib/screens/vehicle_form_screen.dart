@@ -20,8 +20,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final TextEditingController _ownerNameController = TextEditingController();
   final TextEditingController _vehicleNumberController = TextEditingController();
   final TextEditingController _vehicleCompanyController = TextEditingController();
+  final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
+  final TextEditingController _registrationNumberController = TextEditingController();
+  final TextEditingController _engineNumberController = TextEditingController();
+  final TextEditingController _chassisNumberController = TextEditingController();
+  final TextEditingController _insuranceCompanyController = TextEditingController();
+  final TextEditingController _insurancePolicyNumberController = TextEditingController();
+  final TextEditingController _insuranceExpiryController = TextEditingController();
   final TextEditingController _lastBrakeOilChangeController = TextEditingController();
   final TextEditingController _lastTireReplaceController = TextEditingController();
   final TextEditingController _lastServiceController = TextEditingController();
@@ -39,8 +46,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       _ownerNameController.text = widget.vehicleData!['owner_name'] ?? '';
       _vehicleNumberController.text = widget.vehicleData!['vehicle_number'] ?? '';
       _vehicleCompanyController.text = widget.vehicleData!['vehicle_company'] ?? '';
+      _vehicleTypeController.text = widget.vehicleData!['vehicle_type'] ?? '';
       _modelController.text = widget.vehicleData!['model'] ?? '';
       _yearController.text = widget.vehicleData!['year'] ?? '';
+      _registrationNumberController.text = widget.vehicleData!['registration_number'] ?? '';
+      _engineNumberController.text = widget.vehicleData!['engine_number'] ?? '';
+      _chassisNumberController.text = widget.vehicleData!['chassis_number'] ?? '';
+      _insuranceCompanyController.text = widget.vehicleData!['insurance_company'] ?? '';  
+      _insurancePolicyNumberController.text = widget.vehicleData!['insurance_policy_number'] ?? '';
+      _insuranceExpiryController.text = _formatDate(widget.vehicleData!['insurance_expiry']);
       _lastBrakeOilChangeController.text = _formatDate(widget.vehicleData!['last_brake_oil_change']);
       _lastTireReplaceController.text = _formatDate(widget.vehicleData!['last_tire_replace']);
       _lastServiceController.text = _formatDate(widget.vehicleData!['last_service']);
@@ -84,8 +98,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         'owner_name': _ownerNameController.text,
         'vehicle_number': _vehicleNumberController.text,
         'vehicle_company': _vehicleCompanyController.text,
+        'vehicle_type': _vehicleTypeController.text,
         'model': _modelController.text,
         'year': _yearController.text,
+        'registration_number': _registrationNumberController.text,
+        'engine_number': _engineNumberController.text,
+        'chassis_number': _chassisNumberController.text,
+        'insurance_company': _insuranceCompanyController.text,
+        'insurance_policy_number': _insurancePolicyNumberController.text,
+        'insurance_expiry': _insuranceExpiryController.text,
         'last_brake_oil_change': _lastBrakeOilChangeController.text,
         'last_tire_replace': _lastTireReplaceController.text,
         'last_service': _lastServiceController.text,
@@ -115,8 +136,15 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 _buildTextField("Owner Name", _ownerNameController),
                 _buildTextField("Vehicle Number", _vehicleNumberController),
                 _buildTextField("Vehicle Company", _vehicleCompanyController),
+                _buildTextField("Vehicle Type", _vehicleTypeController),
                 _buildTextField("Model", _modelController),
                 _buildTextField("Year", _yearController, keyboardType: TextInputType.number),
+                _buildTextField("Registration Number", _registrationNumberController),
+                _buildTextField("Engine Number", _engineNumberController),
+                _buildTextField("Chassis Number", _chassisNumberController),
+                _buildTextField("Insurance Company", _insuranceCompanyController),
+                _buildTextField("Insurance Policy Number", _insurancePolicyNumberController),
+                _buildDateField("Insurance Expiry", _insuranceExpiryController),
                 _buildDateField("Last Brake-Oil Change", _lastBrakeOilChangeController),
                 _buildDateField("Last Tire Replace", _lastTireReplaceController),
                 _buildDateField("Last Service", _lastServiceController),
