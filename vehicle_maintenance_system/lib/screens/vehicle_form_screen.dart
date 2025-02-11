@@ -26,6 +26,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final TextEditingController _registrationNumberController = TextEditingController();
   final TextEditingController _engineNumberController = TextEditingController();
   final TextEditingController _chassisNumberController = TextEditingController();
+  final TextEditingController _fuelTypeController = TextEditingController();
   final TextEditingController _insuranceCompanyController = TextEditingController();
   final TextEditingController _insurancePolicyNumberController = TextEditingController();
   final TextEditingController _insuranceExpiryController = TextEditingController();
@@ -52,6 +53,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       _registrationNumberController.text = widget.vehicleData!['registration_number'] ?? '';
       _engineNumberController.text = widget.vehicleData!['engine_number'] ?? '';
       _chassisNumberController.text = widget.vehicleData!['chassis_number'] ?? '';
+      _fuelTypeController.text = widget.vehicleData!['fuel_type'] ?? '';
       _insuranceCompanyController.text = widget.vehicleData!['insurance_company'] ?? '';  
       _insurancePolicyNumberController.text = widget.vehicleData!['insurance_policy_number'] ?? '';
       _insuranceExpiryController.text = _formatDate(widget.vehicleData!['insurance_expiry']);
@@ -104,6 +106,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         'registration_number': _registrationNumberController.text,
         'engine_number': _engineNumberController.text,
         'chassis_number': _chassisNumberController.text,
+        'fuel_type': _fuelTypeController.text, 
         'insurance_company': _insuranceCompanyController.text,
         'insurance_policy_number': _insurancePolicyNumberController.text,
         'insurance_expiry': _insuranceExpiryController.text,
@@ -142,6 +145,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 _buildTextField("Registration Number", _registrationNumberController),
                 _buildTextField("Engine Number", _engineNumberController),
                 _buildTextField("Chassis Number", _chassisNumberController),
+                _buildTextField("Fuel Type", _fuelTypeController),
                 _buildTextField("Insurance Company", _insuranceCompanyController),
                 _buildTextField("Insurance Policy Number", _insurancePolicyNumberController),
                 _buildDateField("Insurance Expiry", _insuranceExpiryController),
