@@ -30,7 +30,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   final TextEditingController _insuranceCompanyController = TextEditingController();
   final TextEditingController _insurancePolicyNumberController = TextEditingController();
   final TextEditingController _insuranceExpiryController = TextEditingController();
-  final TextEditingController _lastBrakeOilChangeController = TextEditingController();
+  final TextEditingController _lastOilChangeController = TextEditingController();
   final TextEditingController _lastTireReplaceController = TextEditingController();
   final TextEditingController _lastServiceController = TextEditingController();
   final TextEditingController _otherMaintenanceController = TextEditingController();
@@ -57,7 +57,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       _insuranceCompanyController.text = widget.vehicleData!['insurance_company'] ?? '';  
       _insurancePolicyNumberController.text = widget.vehicleData!['insurance_policy_number'] ?? '';
       _insuranceExpiryController.text = _formatDate(widget.vehicleData!['insurance_expiry']);
-      _lastBrakeOilChangeController.text = _formatDate(widget.vehicleData!['last_brake_oil_change']);
+      _lastOilChangeController.text = _formatDate(widget.vehicleData!['last_oil_change']);
       _lastTireReplaceController.text = _formatDate(widget.vehicleData!['last_tire_replace']);
       _lastServiceController.text = _formatDate(widget.vehicleData!['last_service']);
       _otherMaintenanceController.text = widget.vehicleData!['other_maintenance'] ?? '';
@@ -110,7 +110,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         'insurance_company': _insuranceCompanyController.text,
         'insurance_policy_number': _insurancePolicyNumberController.text,
         'insurance_expiry': _insuranceExpiryController.text,
-        'last_brake_oil_change': _lastBrakeOilChangeController.text,
+        'last_oil_change': _lastOilChangeController.text,
         'last_tire_replace': _lastTireReplaceController.text,
         'last_service': _lastServiceController.text,
         'other_maintenance': _otherMaintenanceController.text,
@@ -149,7 +149,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 _buildTextField("Insurance Company", _insuranceCompanyController),
                 _buildTextField("Insurance Policy Number", _insurancePolicyNumberController),
                 _buildDateField("Insurance Expiry", _insuranceExpiryController),
-                _buildDateField("Last Brake-Oil Change", _lastBrakeOilChangeController),
+                _buildDateField("Last Oil Change", _lastOilChangeController),
                 _buildDateField("Last Tire Replace", _lastTireReplaceController),
                 _buildDateField("Last Service", _lastServiceController),
                 _buildTextField("Other Maintenance", _otherMaintenanceController, maxLines: 3),
