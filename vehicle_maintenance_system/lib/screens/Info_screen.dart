@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import 'package:dr_vehicle/screens/vehicle_form_screen.dart';
 
 class InfoScreen extends StatefulWidget {
@@ -11,52 +10,35 @@ class InfoScreen extends StatefulWidget {
 
 class _InfoScreenState extends State<InfoScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late String _userId;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
-    _userId = _auth.currentUser!.uid;
+    _userId = _auth.currentUser?.uid;
   }
 
-  // Fetch vehicle data from Firestore
-  Future<DocumentSnapshot> _fetchVehicleData() async {
+  Future<DocumentSnapshot?> _fetchVehicleData() async {
+    if (_userId == null) return null;
     return await FirebaseFirestore.instance.collection('vehicles').doc(_userId).get();
-  }
-
-  // Format date to a more readable format
-  String formatDate(String date) {
-    try {
-      DateTime parsedDate = DateFormat('yyyy-MM-dd').parse(date);
-      return DateFormat('d MMMM yyyy').format(parsedDate);
-    } catch (e) {
-      return date;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Vehicle Info & Maintenance"),
-      ),
-      body: FutureBuilder<DocumentSnapshot>(
+      appBar: AppBar(title: Text("Vehicle Info")),
+      body: FutureBuilder<DocumentSnapshot?>(
         future: _fetchVehicleData(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(child: Text("Error fetching data"));
-          }
-
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (snapshot.hasError || snapshot.data == null || !snapshot.data!.exists) {
             return Center(child: Text("No vehicle data found"));
           }
 
           var vehicleData = snapshot.data!.data() as Map<String, dynamic>;
-          List<dynamic> maintenanceHistory = vehicleData['maintenance_history'] ?? [];
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -80,57 +62,32 @@ class _InfoScreenState extends State<InfoScreen> {
                     ),
                   ),
 
-                  // Vehicle Details Section
-                  Text("Vehicle Details", style: Theme.of(context).textTheme.headlineSmall),
-                  SizedBox(height: 10),
-                  _buildDetailRow("Owner Name", vehicleData['owner_name']),
-                  _buildDetailRow("Vehicle Number", vehicleData['vehicle_number']),
-                  _buildDetailRow("Vehicle Company", vehicleData['vehicle_company']),
-                  _buildDetailRow("Vehicle Type", vehicleData['vehicle_type']),
-                  _buildDetailRow("Model", vehicleData['model']),
-                  _buildDetailRow("Year", vehicleData['year']),
-                  _buildDetailRow("Registration Number", vehicleData['registration_number']),
-                  _buildDetailRow("Engine Number", vehicleData['engine_number']),
-                  _buildDetailRow("Chassis Number", vehicleData['chassis_number']),
-                  _buildDetailRow("Fuel Type", vehicleData['fuel_type']),
-                  _buildDetailRow("Insurance Company", vehicleData['insurance_company']),
-                  _buildDetailRow("Insurance Policy Number", vehicleData['insurance_policy_number']),
-                  _buildDetailRow("Insurance Expiry", formatDate(vehicleData['insurance_expiry'])),
-                  _buildDetailRow("Last Brake Oil Change", formatDate(vehicleData['last_brake_oil_change'])),
-                  _buildDetailRow("Last Tire Replace", formatDate(vehicleData['last_tire_replace'])),
-                  _buildDetailRow("Last Service", formatDate(vehicleData['last_service'])),
-                  _buildDetailRow("Other Maintenance", vehicleData['other_maintenance']),
-                  SizedBox(height: 20),
-                  Divider(),
+                  SizedBox(height: 20), // Increased spacing
 
-                  // Maintenance History Section
-                  Text("Maintenance History", style: Theme.of(context).textTheme.headlineSmall),
-                  SizedBox(height: 10),
-                  if (maintenanceHistory.isNotEmpty)
-                    Column(
-                      children: maintenanceHistory.map((entry) {
-                        return Card(
-                          elevation: 2,
-                          margin: EdgeInsets.symmetric(vertical: 5),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Date: ${formatDate(entry['date'])}", style: TextStyle(fontWeight: FontWeight.bold)),
-                                if (entry['last_brake_oil_change'] != null) _buildDetailRow("Last Brake Oil Change", formatDate(entry['last_brake_oil_change'])),
-                                if (entry['last_tire_replace'] != null) _buildDetailRow("Last Tire Replace", formatDate(entry['last_tire_replace'])),
-                                if (entry['last_service'] != null) _buildDetailRow("Last Service", formatDate(entry['last_service'])),
-                                if (entry['other_maintenance'] != null) _buildDetailRow("Other Maintenance", entry['other_maintenance']),
-                                if (entry['further_maintenance'] != null) _buildDetailRow("Further Maintenance", entry['further_maintenance']),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    )
-                  else
-                    Text("No maintenance records found."),
+                  // Vehicle Details Section
+                  _buildSectionHeader(context, "Vehicle Details"),
+                  _buildDetailRow(context, "Owner Name", vehicleData['owner_name']),
+                  _buildDetailRow(context, "Vehicle Number", vehicleData['vehicle_number']),
+                  _buildDetailRow(context, "Vehicle Company", vehicleData['vehicle_company']),
+                  _buildDetailRow(context, "Model", vehicleData['model']),
+                  _buildDetailRow(context, "Vehicle Type", vehicleData['vehicle_type']),
+                  _buildDetailRow(context, "Year", vehicleData['year']),
+                  _buildDetailRow(context, "Fuel Type", vehicleData['fuel_type']),
+                  _buildDetailRow(context, "Registration Number", vehicleData['registration_number']),
+                  _buildDetailRow(context, "Chassis Number", vehicleData['chassis_number']),
+                  _buildDetailRow(context, "Engine Number", vehicleData['engine_number']),
+
+                  SizedBox(height: 20), // Increased spacing
+
+                  // Maintenance & Policy History Section
+                  _buildSectionHeader(context, "Maintenance & Policy History"),
+                  _buildDetailRow(context, "Insurance Company", vehicleData['insurance_company']),
+                  _buildDetailRow(context, "Insurance Policy Number", vehicleData['insurance_policy_number']),
+                  _buildDetailRow(context, "Insurance Expiry Date", vehicleData['insurance_expiry']),
+                  _buildDetailRow(context, "Last Tire Replace", vehicleData['last_tire_replace']),
+                  _buildDetailRow(context, "Last Oil Change", vehicleData['last_oil_change']),
+                  _buildDetailRow(context, "Last Service Date", vehicleData['last_service']),
+                  _buildDetailRow(context, "Other Maintenance", vehicleData['other_maintenance']),
                 ],
               ),
             ),
@@ -140,14 +97,25 @@ class _InfoScreenState extends State<InfoScreen> {
     );
   }
 
-  // Helper method to build a detail row
-  Widget _buildDetailRow(String title, String? value) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.headlineSmall),
+        Divider(), // Separator line
+        SizedBox(height: 10),
+      ],
+    );
+  }
+
+
+  Widget _buildDetailRow(BuildContext context, String title, dynamic value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
           Text("$title: ", style: TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: Text(value ?? "N/A", style: TextStyle(fontSize: 16))),
+          Expanded(child: Text(value?.toString() ?? "N/A", style: TextStyle(fontSize: 16))),
         ],
       ),
     );
