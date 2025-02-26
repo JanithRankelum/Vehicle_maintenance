@@ -3,6 +3,8 @@ import 'package:dr_vehicle/services/auth_service.dart';
 import 'package:dr_vehicle/screens/login_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
+
   @override
   _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }
