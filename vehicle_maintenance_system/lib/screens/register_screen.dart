@@ -4,6 +4,8 @@ import 'package:dr_vehicle/screens/login_screen.dart';
 import 'package:dr_vehicle/screens/vehicle_form_screen.dart';  // Import VehicleFormScreen
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }

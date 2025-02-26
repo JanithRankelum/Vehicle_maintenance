@@ -4,6 +4,8 @@ import 'package:dr_vehicle/screens/home_screen.dart';
 import 'package:dr_vehicle/screens/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
