@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../services/bluetooth_service.dart' as custom_bluetooth_service;
+import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothScanPage extends StatefulWidget {
   @override
@@ -52,8 +53,19 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
       body: Column(
         children: [
           ElevatedButton(
-            onPressed: isScanning ? null : scanForDevices,
-            child: Text(isScanning ? "Scanning..." : "Start Scan"),
+            onPressed: () async {
+              bool permissionsGranted =
+                  await PermissionService.requestBluetoothAndLocationPermissions();
+              if (permissionsGranted) {
+                // Start scanning for devices
+                scanForDevices();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Permissions not granted")),
+                );
+              }
+            },
+            child: Text("Scan for Devices"),
           ),
           Expanded(
             child: scanResults.isEmpty
@@ -86,5 +98,17 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
         ],
       ),
     );
+  }
+}
+
+class PermissionService {
+  static Future<bool> requestBluetoothAndLocationPermissions() async {
+    await Permission.bluetoothScan.request();
+    await Permission.bluetoothConnect.request();
+    await Permission.locationWhenInUse.request();
+
+    return await Permission.bluetoothScan.isGranted &&
+        await Permission.bluetoothConnect.isGranted &&
+        await Permission.locationWhenInUse.isGranted;
   }
 }
