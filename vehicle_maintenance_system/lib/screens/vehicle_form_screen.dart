@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 class VehicleFormScreen extends StatefulWidget {
   final Map<String, dynamic>? vehicleData; // Accept existing vehicle data
 
-  VehicleFormScreen({this.vehicleData});
+  const VehicleFormScreen({super.key, this.vehicleData});
 
   @override
   _VehicleFormScreenState createState() => _VehicleFormScreenState();

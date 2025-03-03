@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:dr_vehicle/services/auth_service.dart';
-import 'package:dr_vehicle/screens/login_screen.dart';
 import 'package:dr_vehicle/screens/vehicle_form_screen.dart';  // Import VehicleFormScreen
 
 class RegisterScreen extends StatefulWidget {

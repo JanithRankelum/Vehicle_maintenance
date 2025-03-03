@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dr_vehicle/screens/vehicle_form_screen.dart';
 
 class InfoScreen extends StatefulWidget {
+  const InfoScreen({super.key});
+
   @override
   _InfoScreenState createState() => _InfoScreenState();
 }

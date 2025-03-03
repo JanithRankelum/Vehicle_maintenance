@@ -26,8 +26,6 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -45,6 +43,15 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Bluetooth and Location Permissions -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth to connect with the vehicle's OBD-II device.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app needs Bluetooth access to communicate with the vehicle's OBD-II adapter.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location access is required to detect nearby Bluetooth OBD-II devices.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs access to location services for Bluetooth scanning.</string>
 </dict>
 </plist>
-
