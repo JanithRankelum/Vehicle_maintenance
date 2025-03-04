@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import '../services/bluetooth_service.dart' as custom_bluetooth_service;
 import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothScanPage extends StatefulWidget {
@@ -9,41 +9,92 @@ class BluetoothScanPage extends StatefulWidget {
 }
 
 class _BluetoothScanPageState extends State<BluetoothScanPage> {
-  final custom_bluetooth_service.BluetoothService bluetoothService =
-      custom_bluetooth_service.BluetoothService();
   List<ScanResult> scanResults = [];
   bool isScanning = false;
+  StreamSubscription<List<ScanResult>>? scanSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    listenToBluetoothState();
+  }
+
+  Future<void> checkAndEnableBluetooth() async {
+    if (!await FlutterBluePlus.isAvailable) {
+      print("❌ Bluetooth is not available on this device.");
+      return;
+    }
+
+    if (!await FlutterBluePlus.isOn) {
+      print("⚠️ Bluetooth is off. Please enable it manually.");
+    }
+  }
+
+  Future<bool> checkAndRequestPermissions() async {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.locationWhenInUse,
+    ].request();
+
+    return statuses.values.every((status) => status.isGranted);
+  }
+
+  void listenToBluetoothState() {
+    FlutterBluePlus.adapterState.listen((BluetoothAdapterState state) {
+      if (state == BluetoothAdapterState.on) {
+        print("✅ Bluetooth is ON. Ready to scan.");
+      } else {
+        print("❌ Bluetooth is OFF. Please enable it.");
+      }
+    });
+  }
 
   void scanForDevices() async {
+    // Ensure Bluetooth is available and ON
+    if (!await FlutterBluePlus.isAvailable || !await FlutterBluePlus.isOn) {
+      print("❌ Bluetooth is not available or OFF.");
+      return;
+    }
+
+    // Request permissions
+    bool hasPermissions = await checkAndRequestPermissions();
+    if (!hasPermissions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Permissions not granted")),
+      );
+      return;
+    }
+
     setState(() {
       isScanning = true;
-      scanResults.clear(); // Clear previous scan results
+      scanResults.clear();
     });
 
-    bluetoothService.scanForDevices((results) {
+    // Start scanning
+    FlutterBluePlus.startScan(timeout: Duration(seconds: 10));
+
+    // Avoid multiple subscriptions
+    scanSubscription?.cancel();
+    scanSubscription = FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
       setState(() {
         scanResults = results;
       });
     });
 
     // Stop scanning after 10 seconds
-    await Future.delayed(Duration(seconds: 10));
-    setState(() {
-      isScanning = false;
+    Future.delayed(Duration(seconds: 10), () async {
+      await FlutterBluePlus.stopScan();
+      setState(() {
+        isScanning = false;
+      });
     });
   }
 
-  void connectToDevice(BluetoothDevice device) async {
-    try {
-      await bluetoothService.connectToObd(device);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Connected to ${device.name}")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to connect: ${e.toString()}")),
-      );
-    }
+  @override
+  void dispose() {
+    scanSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -54,26 +105,16 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
         children: [
           ElevatedButton(
             onPressed: () async {
-              bool permissionsGranted =
-                  await PermissionService.requestBluetoothAndLocationPermissions();
-              if (permissionsGranted) {
-                // Start scanning for devices
-                scanForDevices();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Permissions not granted")),
-                );
-              }
+              await checkAndEnableBluetooth();
+              scanForDevices();
             },
-            child: Text("Scan for Devices"),
+            child: Text(isScanning ? "Scanning..." : "Scan for Devices"),
           ),
           Expanded(
             child: scanResults.isEmpty
                 ? Center(
                     child: Text(
-                      isScanning
-                          ? "Scanning for devices..."
-                          : "No devices found",
+                      isScanning ? "🔍 Scanning for devices..." : "No devices found",
                       style: TextStyle(fontSize: 16),
                     ),
                   )
@@ -89,7 +130,7 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
                         subtitle: Text(device.id.toString()),
                         trailing: Icon(Icons.bluetooth),
                         onTap: () {
-                          connectToDevice(device); // Connect when tapped
+                          // Handle device connection
                         },
                       );
                     },
@@ -98,17 +139,5 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
         ],
       ),
     );
-  }
-}
-
-class PermissionService {
-  static Future<bool> requestBluetoothAndLocationPermissions() async {
-    await Permission.bluetoothScan.request();
-    await Permission.bluetoothConnect.request();
-    await Permission.locationWhenInUse.request();
-
-    return await Permission.bluetoothScan.isGranted &&
-        await Permission.bluetoothConnect.isGranted &&
-        await Permission.locationWhenInUse.isGranted;
   }
 }

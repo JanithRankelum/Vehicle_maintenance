@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:dr_vehicle/screens/splash_screen.dart';
-import 'package:dr_vehicle/screens/login_screen.dart'; // Import the LoginScreen
-import 'package:flutter_blue_plus/flutter_blue_plus.dart'; // Import flutter_blue_plus
-import 'package:permission_handler/permission_handler.dart'; // Import permission_handler
+import 'package:dr_vehicle/screens/login_screen.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Ensure Firebase is initialized
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -21,14 +21,13 @@ class MyApp extends StatelessWidget {
       title: 'Dr. Vehicle',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity, // Adaptive density for different platforms
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const SplashScreen(), // Set SplashScreen as the first screen
+      home: const SplashScreen(),
       routes: {
-        '/login_screen': (context) => const LoginScreen(), // Define the login screen route
+        '/login_screen': (context) => const LoginScreen(),
       },
       onUnknownRoute: (settings) {
-        // Fallback for unknown routes
         return MaterialPageRoute(
           builder: (context) => Scaffold(
             body: Center(
@@ -41,28 +40,45 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Function to scan for Bluetooth devices
+// 🔹 Function to request and check Bluetooth & Location permissions
+Future<bool> requestBluetoothPermissions() async {
+  Map<Permission, PermissionStatus> statuses = await [
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.locationWhenInUse, // Needed for Android
+  ].request();
+
+  return statuses.values.every((status) => status.isGranted);
+}
+
+// 🔹 Function to check Bluetooth state and start scanning
 Future<void> scanForDevices() async {
-  // FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
+  // Ensure Bluetooth is available
+  if (!(await FlutterBluePlus.isAvailable)) {
+    print("Bluetooth is not available on this device.");
+    return;
+  }
+
+  // Ensure Bluetooth is turned ON
+  if (!(await FlutterBluePlus.isOn)) {
+    print("Bluetooth is off. Please turn it on.");
+    return;
+  }
 
   // Request permissions
-  await Permission.bluetoothScan.request();
-  await Permission.bluetoothConnect.request();
-  await Permission.locationWhenInUse.request(); // Needed for Android
-
-  if (await Permission.bluetoothScan.isGranted &&
-      await Permission.bluetoothConnect.isGranted &&
-      await Permission.locationWhenInUse.isGranted) {
-    // Start scanning
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
-
-    // Listen for devices
-    FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
-      for (ScanResult result in results) {
-        print("Found Device: ${result.device.name} - ${result.device.id}");
-      }
-    });
-  } else {
-    print("Permissions not granted");
+  bool hasPermissions = await requestBluetoothPermissions();
+  if (!hasPermissions) {
+    print("Bluetooth permissions not granted.");
+    return;
   }
+
+  // Start scanning
+  FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+
+  // Listen for discovered devices
+  FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
+    for (ScanResult result in results) {
+      print("Found Device: ${result.device.name} - ${result.device.id}");
+    }
+  });
 }
