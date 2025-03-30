@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
 
 class BluetoothScanPage extends StatefulWidget {
+  const BluetoothScanPage({super.key});
+
   @override
   _BluetoothScanPageState createState() => _BluetoothScanPageState();
 }
@@ -14,6 +17,7 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
   StreamSubscription<List<ScanResult>>? scanSubscription;
   BluetoothDevice? connectedDevice;
   Map<String, bool> connectingDevices = {}; // Track connection status per device
+  BluetoothCharacteristic? obdCharacteristic;
 
   @override
   void initState() {
@@ -21,7 +25,6 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
     enableBluetooth();
   }
 
-  // ✅ Ensure Bluetooth is enabled
   Future<void> enableBluetooth() async {
     if (!(await FlutterBluePlus.isOn)) {
       print("🔴 Bluetooth is OFF. Requesting to turn ON...");
@@ -29,7 +32,6 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
     }
   }
 
-  // ✅ Request necessary permissions
   Future<bool> checkAndRequestPermissions() async {
     Map<Permission, PermissionStatus> statuses = await [
       Permission.bluetoothScan,
@@ -40,7 +42,6 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
     return statuses.values.every((status) => status.isGranted);
   }
 
-  // ✅ Scan for devices
   void scanForDevices() async {
     print("🔍 Starting Bluetooth scan...");
 
@@ -94,7 +95,6 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
     });
   }
 
-  // ✅ Connect to a Bluetooth device with system-level pairing
   Future<void> connectToDevice(BluetoothDevice device) async {
     String deviceId = device.id.toString();
     setState(() {
@@ -102,63 +102,86 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
     });
 
     try {
-      // Step 1: Connect to the device
       print("🔗 Connecting to ${device.name}...");
-      await device.connect(autoConnect: false); // Connect first
+      await device.connect(autoConnect: false);
       print("✅ Connected to ${device.name}");
 
-      // Step 2: Pair with the device (system-level pairing)
-      print("🔗 Pairing with ${device.name}...");
-      await device.createBond(); // Initiate system-level pairing
-      print("✅ Paired with ${device.name}");
+      List<BluetoothService> services = await device.discoverServices();
 
-      setState(() {
-        connectedDevice = device;
-      });
+      for (BluetoothService service in services) {
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          if (characteristic.properties.write && characteristic.properties.read) {
+            print("✅ Found writable characteristic: ${characteristic.uuid}");
 
+            obdCharacteristic = characteristic;
+            await sendObdCommand("010C"); // Read Engine RPM
+            setState(() {
+              connectedDevice = device;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("✅ Connected & OBD-II Ready!")),
+            );
+            return;
+          }
+        }
+      }
+
+      print("❌ No suitable OBD-II characteristic found");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Connected and paired with ${device.name}")),
+        SnackBar(content: Text("❌ No OBD-II characteristic found")),
       );
     } catch (e) {
-      print("❌ Connection or pairing failed: $e");
+      print("❌ Connection failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Connection or pairing failed: $e")),
+        SnackBar(content: Text("❌ Connection failed: $e")),
       );
     }
 
-    // Stop showing loading after connection attempt
     setState(() {
       connectingDevices[deviceId] = false;
     });
   }
 
-  // ✅ Disconnect from a Bluetooth device
+  Future<void> sendObdCommand(String command) async {
+    if (obdCharacteristic == null) {
+      print("❌ No OBD-II characteristic available!");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ No OBD-II characteristic available!")),
+      );
+      return;
+    }
+
+    try {
+      List<int> obdCommand = utf8.encode("$command\r");
+      await obdCharacteristic!.write(obdCommand, withoutResponse: true);
+      await Future.delayed(Duration(milliseconds: 200));
+
+      List<int> response = await obdCharacteristic!.read();
+      String responseStr = utf8.decode(response);
+      print("📊 OBD-II Response: $responseStr");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("📊 OBD-II Response: $responseStr")),
+      );
+    } catch (e) {
+      print("❌ Failed to send OBD-II command: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Failed to send OBD-II command: $e")),
+      );
+    }
+  }
+
   Future<void> disconnectDevice() async {
     if (connectedDevice != null) {
-      try {
-        // Step 1: Remove bond (unpair) the device
-        print("🔌 Removing bond with ${connectedDevice!.name}...");
-        await connectedDevice!.removeBond(); // Remove bond (unpair)
-        print("✅ Bond removed with ${connectedDevice!.name}");
-
-        // Step 2: Disconnect from the device
-        print("🔌 Disconnecting from ${connectedDevice!.name}...");
-        await connectedDevice!.disconnect();
-        print("✅ Disconnected from ${connectedDevice!.name}");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("🔌 Disconnected and unpaired from ${connectedDevice!.name}")),
-        );
-
-        setState(() {
-          connectedDevice = null;
-        });
-      } catch (e) {
-        print("❌ Disconnect failed: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Disconnect failed: $e")),
-        );
-      }
+      await connectedDevice!.disconnect();
+      setState(() {
+        connectedDevice = null;
+        obdCharacteristic = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Device disconnected")),
+      );
     }
   }
 
