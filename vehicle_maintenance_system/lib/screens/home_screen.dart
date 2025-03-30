@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dr_vehicle/screens/info_screen.dart';
 import 'package:dr_vehicle/screens/bluetooth_scan_page.dart'; // Add an OBD-II screen for diagnostics
+import 'package:dr_vehicle/screens/send_obd_command_page.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -111,6 +112,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
               child: Text("Check OBD-II Diagnostics", style: TextStyle(color: Colors.white)),
+            ),
+            SizedBox(height: 20),
+            // Button for OBD2 Data
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SendObdCommandPage()), // Navigate to OBD-II page
+                );
+              },
+              child: Text("Get OBD2 Data", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
