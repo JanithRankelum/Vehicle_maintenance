@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: vehicle-maintenance-api
+    runtime: python
+    buildCommand: ""
+    startCommand: python app.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
