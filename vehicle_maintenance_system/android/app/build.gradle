@@ -10,12 +10,17 @@ android {
     namespace = "com.example.vehicle_maintenance_system"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    defaultConfig {
+        multiDexEnabled true
+    }
 
     
 
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        
     }
 
     kotlinOptions {
@@ -43,4 +48,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
