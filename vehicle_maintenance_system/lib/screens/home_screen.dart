@@ -1,10 +1,15 @@
+import 'package:dr_vehicle/screens/maintenance_info_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:dr_vehicle/screens/info_screen.dart';
+import 'package:dr_vehicle/screens/vehicle_form_screen.dart';
 import 'package:dr_vehicle/screens/bluetooth_scan_page.dart';
 import 'package:dr_vehicle/screens/send_obd_command_page.dart';
 import 'package:dr_vehicle/screens/obd2_diagnosis_page.dart';
 import 'package:dr_vehicle/screens/service_schedule_page.dart';
+import 'package:dr_vehicle/screens/vehicle_list_screen.dart';
+import 'package:dr_vehicle/screens/maintenance_form.dart';
+import 'package:dr_vehicle/screens/info_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +22,36 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? user;
+  Map<String, dynamic>? selectedVehicle;
+  bool isFirstLogin = false;
 
   @override
   void initState() {
     super.initState();
-    user = _auth.currentUser;  // Get current user
+    user = _auth.currentUser;
+    _checkIfFirstLogin();
+  }
+
+  Future<void> _checkIfFirstLogin() async {
+    if (user != null) {
+      final vehiclesSnapshot = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('user_id', isEqualTo: user!.uid)
+          .get();
+
+      if (vehiclesSnapshot.docs.isEmpty) {
+        setState(() {
+          isFirstLogin = true;
+        });
+      } else {
+        final firstDoc = vehiclesSnapshot.docs.first;
+        final firstVehicle = firstDoc.data() as Map<String, dynamic>;
+        firstVehicle['id'] = firstDoc.id; // ✅ Attach document ID
+        setState(() {
+          selectedVehicle = firstVehicle;
+        });
+      }
+    }
   }
 
   void _logout() async {
@@ -70,7 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Car Image
           Container(
             margin: EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -85,6 +114,14 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
             ),
           ),
+          if (selectedVehicle != null)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                "${selectedVehicle!['model']} (${selectedVehicle!['vehicle_number']})",
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GridView.count(
@@ -95,11 +132,36 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
+                buildCard("Vehicles", Icons.directions_car_filled, Colors.teal.shade700, () async {
+                  final vehicleData = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => VehicleListScreen()),
+                  );
+                  if (vehicleData != null) {
+                    setState(() {
+                      selectedVehicle = vehicleData;
+                    });
+                  }
+                }),
                 buildCard("Vehicle Info", Icons.info_outline, Colors.blueAccent.shade700, () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => InfoScreen()));
+                  if (selectedVehicle != null && selectedVehicle!['id'] != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InfoScreen(vehicleId: selectedVehicle!['id']),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Vehicle ID is missing.")),
+                    );
+                  }
+                }),
+                buildCard("Maintenance Info", Icons.directions_car_filled, const Color.fromARGB(255, 121, 0, 0), () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen()));
                 }),
                 buildCard("Service Schedule", Icons.build_circle_outlined, Colors.deepPurple, () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: {})));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
                 }),
               ],
             ),
@@ -176,6 +238,22 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
       ),
       body: _tabs[_selectedIndex],
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              backgroundColor: Colors.greenAccent,
+              child: Icon(Icons.add, color: Colors.black),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => VehicleFormScreen()),
+                );
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => MaintenanceFormScreen()),
+                );
+              },
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.grey[900],
         selectedItemColor: Colors.greenAccent,
