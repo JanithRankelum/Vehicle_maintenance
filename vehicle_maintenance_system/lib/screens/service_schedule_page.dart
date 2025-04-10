@@ -10,7 +10,7 @@ import 'package:dr_vehicle/screens/local_notifications.dart'; // Adjust path if 
 class ServiceSchedulePage extends StatefulWidget {
   final Map<String, dynamic> vehicleData;
 
-  const ServiceSchedulePage({Key? key, required this.vehicleData}) : super(key: key);
+  const ServiceSchedulePage({super.key, required this.vehicleData});
 
   @override
   State<ServiceSchedulePage> createState() => _ServiceSchedulePageState();
