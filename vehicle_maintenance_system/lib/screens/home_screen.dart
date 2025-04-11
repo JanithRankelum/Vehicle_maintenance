@@ -1,15 +1,16 @@
-import 'package:dr_vehicle/screens/maintenance_info_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:dr_vehicle/screens/vehicle_form_screen.dart';
+import 'package:dr_vehicle/screens/vehicle_list_screen.dart';
+import 'package:dr_vehicle/screens/maintenance_form.dart';
+import 'package:dr_vehicle/screens/maintenance_info_screen.dart';
+import 'package:dr_vehicle/screens/service_schedule_page.dart';
 import 'package:dr_vehicle/screens/bluetooth_scan_page.dart';
 import 'package:dr_vehicle/screens/send_obd_command_page.dart';
 import 'package:dr_vehicle/screens/obd2_diagnosis_page.dart';
-import 'package:dr_vehicle/screens/service_schedule_page.dart';
-import 'package:dr_vehicle/screens/vehicle_list_screen.dart';
-import 'package:dr_vehicle/screens/maintenance_form.dart';
-import 'package:dr_vehicle/screens/info_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dr_vehicle/screens/info_screen.dart'; // updated import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,8 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       } else {
         final firstDoc = vehiclesSnapshot.docs.first;
-        final firstVehicle = firstDoc.data() as Map<String, dynamic>;
-        firstVehicle['id'] = firstDoc.id; // ✅ Attach document ID
+        final firstVehicle = firstDoc.data();
+        firstVehicle['id'] = firstDoc.id;
         setState(() {
           selectedVehicle = firstVehicle;
         });
@@ -143,25 +144,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
                   }
                 }),
-                buildCard("Vehicle Info", Icons.info_outline, Colors.blueAccent.shade700, () {
-                  if (selectedVehicle != null && selectedVehicle!['id'] != null) {
+                buildCard("Vehicle Info", Icons.settings, const Color.fromARGB(255, 219, 148, 1), () {
+                    if (selectedVehicle != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => InfoScreen(vehicleId: selectedVehicle!['id']),
+                        builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!),
                       ),
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Vehicle ID is missing.")),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
                   }
                 }),
-                buildCard("Maintenance Info", Icons.directions_car_filled, const Color.fromARGB(255, 121, 0, 0), () {
+                buildCard("Maintenance Info", Icons.settings, const Color.fromARGB(255, 121, 0, 0), () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen()));
                 }),
-                buildCard("Service Schedule", Icons.build_circle_outlined, Colors.deepPurple, () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
+                buildCard("Service Schedule", Icons.calendar_today, Colors.deepPurple, () {
+                  if (selectedVehicle != null) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
+                  }
                 }),
               ],
             ),
@@ -243,14 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: Colors.greenAccent,
               child: Icon(Icons.add, color: Colors.black),
               onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => VehicleFormScreen()),
-                );
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => MaintenanceFormScreen()),
-                );
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleFormScreen()));
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceFormScreen()));
               },
             )
           : null,
