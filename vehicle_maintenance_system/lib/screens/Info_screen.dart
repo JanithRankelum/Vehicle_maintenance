@@ -1,113 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
-class InfoScreen extends StatefulWidget {
-  final String vehicleId;
+class VehicleInfoScreen extends StatefulWidget {
+  final Map<String, dynamic> vehicleData;
 
-  const InfoScreen({super.key, required this.vehicleId});
+  const VehicleInfoScreen({Key? key, required this.vehicleData})
+      : super(key: key);
 
   @override
-  State<InfoScreen> createState() => _InfoScreenState();
+  State<VehicleInfoScreen> createState() => _VehicleInfoScreenState();
 }
 
-class _InfoScreenState extends State<InfoScreen> {
-  Map<String, dynamic>? vehicleData;
-  bool isLoading = true;
+class _VehicleInfoScreenState extends State<VehicleInfoScreen> {
+  late Map<String, dynamic> updatedData;
+  bool isEditing = false;
 
   @override
   void initState() {
     super.initState();
-    fetchVehicleData();
+    updatedData = Map<String, dynamic>.from(widget.vehicleData);
   }
 
-  Future<void> fetchVehicleData() async {
-    try {
-      final doc = await FirebaseFirestore.instance
+  void _updateVehicleInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final querySnapshot = await FirebaseFirestore.instance
           .collection('vehicles')
-          .doc(widget.vehicleId)
+          .where('user_id', isEqualTo: user.uid)
           .get();
 
-      if (doc.exists) {
-        setState(() {
-          vehicleData = doc.data();
-          isLoading = false;
+      if (querySnapshot.docs.isNotEmpty) {
+        final docId = querySnapshot.docs.first.id;
+
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(docId)
+            .update({
+          ...updatedData,
+          'updated_at': FieldValue.serverTimestamp(),
         });
-      } else {
+
         setState(() {
-          isLoading = false;
+          isEditing = false;
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vehicle data not found')),
+          SnackBar(content: Text('Vehicle info updated successfully')),
         );
       }
-    } catch (e) {
-      print('Error fetching vehicle data: $e');
-      setState(() {
-        isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load vehicle data')),
-      );
     }
+  }
+
+  Widget _buildInfoTile(String label, String key) {
+    final value = updatedData[key];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: ListTile(
+        title: Text(label,
+            style: TextStyle(
+                color: Colors.grey[400], fontWeight: FontWeight.bold)),
+        subtitle: isEditing
+            ? TextFormField(
+                initialValue: value?.toString() ?? '',
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "Enter $label",
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                ),
+                onChanged: (val) => updatedData[key] = val,
+              )
+            : Text(
+                value?.toString() ?? "N/A",
+                style: TextStyle(color: Colors.white),
+              ),
+        tileColor: Colors.grey[850],
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text("Vehicle Info", style: TextStyle(color: Colors.white)),
-      ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator(color: Colors.greenAccent))
-          : vehicleData == null
-              ? Center(
-                  child: Text(
-                    'No vehicle data available.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Image.asset(
-                          'assets/logo/car.png',
-                          height: 180,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      buildInfoTile('Model', vehicleData!['model']),
-                      buildInfoTile('Vehicle Number', vehicleData!['vehicle_number']),
-                      buildInfoTile('Fuel Type', vehicleData!['fuel_type']),
-                      buildInfoTile('Power', vehicleData!['power']),
-                      buildInfoTile('Mileage', vehicleData!['mileage']),
-                      buildInfoTile('First Registration', vehicleData!['registration_date']),
-                    ],
-                  ),
-                ),
-    );
-  }
+    Timestamp? timestamp = widget.vehicleData['updated_at'];
+    String formattedTime = timestamp != null
+        ? DateFormat.yMMMd().add_jm().format(timestamp.toDate())
+        : 'N/A';
 
-  Widget buildInfoTile(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        padding: EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Vehicle Info'),
+        backgroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: Icon(isEditing ? Icons.save : Icons.edit),
+            onPressed: () {
+              if (isEditing) {
+                _updateVehicleInfo();
+              } else {
+                setState(() {
+                  isEditing = true;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Colors.black,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
           children: [
-            Text(title, style: TextStyle(color: Colors.white70, fontSize: 16)),
-            Text(value, style: TextStyle(color: Colors.white, fontSize: 16)),
+            _buildInfoTile("Model", "model"),
+            _buildInfoTile("Vehicle Number", "vehicle_number"),
+            _buildInfoTile("Vehicle Type", "vehicle_type"),
+            _buildInfoTile("Company", "vehicle_company"),
+            _buildInfoTile("Fuel Type", "fuel_type"),
+            _buildInfoTile("Year", "year"),
+            _buildInfoTile("Chassis Number", "chassis_number"),
+            _buildInfoTile("Engine Number", "engine_number"),
+            _buildInfoTile("Registration Number", "registration_number"),
+            _buildInfoTile("Owner Name", "owner_name"),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: ListTile(
+                title: Text("Last Updated",
+                    style: TextStyle(
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.bold)),
+                subtitle:
+                    Text(formattedTime, style: TextStyle(color: Colors.white)),
+                tileColor: Colors.grey[850],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
           ],
         ),
       ),
