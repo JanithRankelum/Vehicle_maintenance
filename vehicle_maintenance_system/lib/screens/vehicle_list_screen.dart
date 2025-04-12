@@ -31,7 +31,12 @@ class VehicleListScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: vehicles.length,
             itemBuilder: (context, index) {
-              final data = vehicles[index].data() as Map<String, dynamic>;
+              final doc = vehicles[index];
+              final data = doc.data() as Map<String, dynamic>;
+
+              // Attach vehicle_id from doc.id
+              data['vehicle_id'] = doc.id;
+
               return Card(
                 color: Colors.grey[850],
                 margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -39,8 +44,7 @@ class VehicleListScreen extends StatelessWidget {
                   title: Text("Model: ${data['model'] ?? 'Unknown'}", style: TextStyle(color: Colors.white)),
                   subtitle: Text("Vehicle Number: ${data['vehicle_number'] ?? ''}", style: TextStyle(color: Colors.white70)),
                   onTap: () {
-                    // Return the selected vehicle data to HomeScreen
-                    Navigator.pop(context, data);
+                    Navigator.pop(context, data); // Return vehicle info with user_id & vehicle_id
                   },
                 ),
               );
