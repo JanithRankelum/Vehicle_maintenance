@@ -57,11 +57,13 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
       // Assuming that there is only one vehicle for the user in this case
       String vehicleId = vehiclesSnapshot.docs.first.id;
 
+      // Ensure that the maintenance document is created with the `vehicle_id` field
       await FirebaseFirestore.instance
           .collection('maintenance')
           .doc(vehicleId) // Store maintenance data under vehicleId
           .set({
         'user_id': userId, // Ensure the user_id is stored for security validation
+        'vehicle_id': vehicleId, // Add the vehicle_id field
         'insurance_company': _insuranceCompanyController.text,
         'insurance_policy_number': _insurancePolicyController.text,
         'last_oil_change': _lastOilChangeController.text,
