@@ -10,8 +10,7 @@ import 'package:dr_vehicle/screens/service_schedule_page.dart';
 import 'package:dr_vehicle/screens/bluetooth_scan_page.dart';
 import 'package:dr_vehicle/screens/send_obd_command_page.dart';
 import 'package:dr_vehicle/screens/obd2_diagnosis_page.dart';
-import 'package:dr_vehicle/screens/info_screen.dart'; // updated import
-import 'package:dr_vehicle/screens/maintenance_info_screen.dart';
+import 'package:dr_vehicle/screens/info_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -146,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 }),
                 buildCard("Vehicle Info", Icons.settings, const Color.fromARGB(255, 255, 195, 0), () {
-                    if (selectedVehicle != null) {
+                  if (selectedVehicle != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -159,22 +158,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 }),
                 buildCard("Maintenance Info", Icons.settings, const Color.fromARGB(255, 121, 0, 0), () {
                   if (selectedVehicle != null) {
+                    
+                    // If no vehicle selected, pass blank vehicleId to let screen fetch first vehicle
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => MaintenanceInfoScreen(
-                          userId: user!.uid,
-                          vehicleId: selectedVehicle!['vehicle_id'],
+                          
+                          vehicleData: selectedVehicle!,
                         ),
                       ),
                     );
-
-  
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
                   }
                 }),
-
                 buildCard("Service Schedule", Icons.calendar_today, Colors.deepPurple, () {
                   if (selectedVehicle != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
