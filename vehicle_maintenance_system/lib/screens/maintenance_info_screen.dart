@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 class MaintenanceInfoScreen extends StatefulWidget {
-  final String userId;
-  final String vehicleId;
+  final Map<String, dynamic> vehicleData;
 
-  const MaintenanceInfoScreen({
-    Key? key,
-    required this.userId,
-    required this.vehicleId,
-  }) : super(key: key);
+  const MaintenanceInfoScreen({Key? key, required this.vehicleData})
+      : super(key: key);
 
   @override
   State<MaintenanceInfoScreen> createState() => _MaintenanceInfoScreenState();
 }
 
 class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
-  Map<String, dynamic> maintenanceData = {};
+  Map<String, dynamic>? updatedData;
   bool isEditing = false;
   bool isLoading = true;
+  String? docId;
 
   @override
   void initState() {
@@ -28,63 +26,79 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
   }
 
   Future<void> fetchMaintenanceData() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('maintenance')
-        .where('user_id', isEqualTo: widget.userId)
-        .where('vehicle_id', isEqualTo: widget.vehicleId)
-        .limit(1)
-        .get();
+    final user = FirebaseAuth.instance.currentUser;
+    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
-    if (snapshot.docs.isNotEmpty) {
-      setState(() {
-        maintenanceData = snapshot.docs.first.data();
-        maintenanceData['docId'] = snapshot.docs.first.id;
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
+    if (user != null && vehicleId != null) {
+      final query = await FirebaseFirestore.instance
+          .collection('maintenance')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: vehicleId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final doc = query.docs.first;
+        setState(() {
+          docId = doc.id;
+          updatedData = doc.data();
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          updatedData = {
+            'insurance_company': '',
+            'insurance_policy_number': '',
+            'last_oil_change': '',
+            'last_service': '',
+            'last_tire_replace': '',
+            'other_maintenance': '',
+            'updated_at': null,
+          };
+          isLoading = false;
+        });
+      }
     }
   }
 
-  void updateMaintenanceData() async {
-    if (maintenanceData['docId'] == null) return;
+  void _updateMaintenanceInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
-    await FirebaseFirestore.instance
-        .collection('maintenance')
-        .doc(maintenanceData['docId'])
-        .update({
-      'insurance_company': maintenanceData['insurance_company'],
-      'insurance_policy_number': maintenanceData['insurance_policy_number'],
-      'last_oil_change': maintenanceData['last_oil_change'],
-      'last_service': maintenanceData['last_service'],
-      'last_tire_replace': maintenanceData['last_tire_replace'],
-      'other_maintenance': maintenanceData['other_maintenance'],
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    if (user != null && updatedData != null) {
+      final maintenanceCollection = FirebaseFirestore.instance.collection('maintenance');
+      final dataToUpdate = {
+        ...updatedData!,
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': vehicleId,
+      };
 
-    setState(() {
-      isEditing = false;
-    });
+      if (docId != null) {
+        await maintenanceCollection.doc(docId).update(dataToUpdate);
+      } else {
+        final docRef = await maintenanceCollection.add(dataToUpdate);
+        docId = docRef.id;
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Maintenance info updated successfully")),
-    );
+      setState(() {
+        isEditing = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maintenance info updated successfully')),
+      );
+    }
   }
 
   Widget _buildInfoTile(String label, String key) {
-    final value = maintenanceData[key];
+    final value = updatedData?[key];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: ListTile(
-        title: Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text(label,
+            style: TextStyle(
+                color: Colors.grey[400], fontWeight: FontWeight.bold)),
         subtitle: isEditing
             ? TextFormField(
                 initialValue: value?.toString() ?? '',
@@ -93,87 +107,84 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                   hintText: "Enter $label",
                   hintStyle: TextStyle(color: Colors.grey[500]),
                 ),
-                onChanged: (val) => maintenanceData[key] = val,
+                onChanged: (val) => updatedData![key] = val,
               )
             : Text(
                 value?.toString() ?? "N/A",
                 style: TextStyle(color: Colors.white),
               ),
         tileColor: Colors.grey[850],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading || updatedData == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Maintenance Info'),
+          backgroundColor: Colors.black,
+        ),
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    Timestamp? timestamp = updatedData!['updated_at'];
+    String formattedTime = timestamp != null
+        ? DateFormat.yMMMd().add_jm().format(timestamp.toDate())
+        : 'N/A';
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Maintenance Info'),
         backgroundColor: Colors.black,
         actions: [
-          if (!isLoading && maintenanceData.isNotEmpty)
-            IconButton(
-              icon: Icon(isEditing ? Icons.save : Icons.edit),
-              onPressed: () {
-                if (isEditing) {
-                  updateMaintenanceData();
-                } else {
-                  setState(() {
-                    isEditing = true;
-                  });
-                }
-              },
-            ),
+          IconButton(
+            icon: Icon(isEditing ? Icons.save : Icons.edit),
+            onPressed: () {
+              if (isEditing) {
+                _updateMaintenanceInfo();
+              } else {
+                setState(() {
+                  isEditing = true;
+                });
+              }
+            },
+          ),
         ],
       ),
       backgroundColor: Colors.black,
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : maintenanceData.isEmpty
-              ? Center(
-                  child: Text(
-                    "No maintenance record found.",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ListView(
-                    children: [
-                      _buildInfoTile("Insurance Company", 'insurance_company'),
-                      _buildInfoTile(
-                          "Insurance Policy Number", 'insurance_policy_number'),
-                      _buildInfoTile("Last Oil Change", 'last_oil_change'),
-                      _buildInfoTile("Last Service", 'last_service'),
-                      _buildInfoTile(
-                          "Last Tire Replacement", 'last_tire_replace'),
-                      _buildInfoTile(
-                          "Other Maintenance", 'other_maintenance'),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6.0),
-                        child: ListTile(
-                          title: Text("Last Updated",
-                              style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            maintenanceData['updated_at'] != null
-                                ? DateFormat.yMMMd().add_jm().format(
-                                    maintenanceData['updated_at'].toDate())
-                                : 'N/A',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          tileColor: Colors.grey[850],
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
+          children: [
+            _buildInfoTile("Insurance Company", "insurance_company"),
+            _buildInfoTile("Insurance Policy Number", "insurance_policy_number"),
+            _buildInfoTile("Last Oil Change", "last_oil_change"),
+            _buildInfoTile("Last Service", "last_service"),
+            _buildInfoTile("Last Tire Replacement", "last_tire_replace"),
+            _buildInfoTile("Other Maintenance", "other_maintenance"),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: ListTile(
+                title: Text("Last Updated",
+                    style: TextStyle(
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.bold)),
+                subtitle:
+                    Text(formattedTime, style: TextStyle(color: Colors.white)),
+                tileColor: Colors.grey[850],
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
