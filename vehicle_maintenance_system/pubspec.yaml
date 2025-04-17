@@ -80,6 +80,11 @@ flutter:
     - assets/logo/app1.gif
     - assets/logo/tire.gif
     - assets/logo/car.png
+    - assets/logo/Bus.png
+    - assets/logo/Truck.png
+    - assets/logo/Van.png
+    - assets/logo/Bike.png
+    - assets/logo/Suv.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
