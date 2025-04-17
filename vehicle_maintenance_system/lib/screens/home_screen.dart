@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:dr_vehicle/screens/vehicle_form_screen.dart';
-import 'package:dr_vehicle/screens/vehicle_list_screen.dart';
-import 'package:dr_vehicle/screens/maintenance_form.dart';
-import 'package:dr_vehicle/screens/maintenance_info_screen.dart';
-import 'package:dr_vehicle/screens/service_schedule_page.dart';
-import 'package:dr_vehicle/screens/bluetooth_scan_page.dart';
-import 'package:dr_vehicle/screens/send_obd_command_page.dart';
-import 'package:dr_vehicle/screens/obd2_diagnosis_page.dart';
-import 'package:dr_vehicle/screens/info_screen.dart';
+import 'vehicle_form_screen.dart';
+import 'vehicle_list_screen.dart';
+import 'maintenance_form.dart';
+import 'maintenance_info_screen.dart';
+import 'service_schedule_page.dart';
+import 'bluetooth_scan_page.dart';
+import 'send_obd_command_page.dart';
+import 'obd2_diagnosis_page.dart';
+import 'info_screen.dart';
+
+const kYellow = Color(0xFFFFC300);
+const kDarkCard = Color(0xFF1C1C1E);
+const kBackground = Colors.black;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,15 +59,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String _getVehicleImage(String? vehicleType) {
+    switch (vehicleType?.toLowerCase()) {
+      case 'car':
+        return 'assets/logo/car.png';
+      case 'bike':
+        return 'assets/logo/Bike.png';
+      case 'truck':
+        return 'assets/logo/Truck.png';
+      case 'bus':
+        return 'assets/logo/Bus.png';
+      case 'van':
+        return 'assets/logo/Van.png';
+      case 'suv':
+        return 'assets/logo/Suv.png';
+      default:
+        return 'assets/logo/car.png';
+    }
+  }
+
   void _logout() async {
     bool? confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Confirm Logout"),
-        content: Text("Are you sure you want to logout?"),
+        backgroundColor: kDarkCard,
+        title: Text("Confirm Logout", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text("Logout")),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancel", style: TextStyle(color: kYellow))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: Text("Logout", style: TextStyle(color: kYellow))),
         ],
       ),
     );
@@ -74,23 +98,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget buildCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget buildCard(String title, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 120,
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
+          color: kDarkCard,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 6)],
         ),
-        padding: EdgeInsets.all(18),
+        padding: EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
+            Icon(icon, size: 36, color: kYellow),
             SizedBox(height: 10),
-            Text(title, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+            ),
           ],
         ),
       ),
@@ -104,27 +131,26 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             margin: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 8)],
             ),
             clipBehavior: Clip.antiAlias,
             child: Image.asset(
-              'assets/logo/car.png',
+              _getVehicleImage(selectedVehicle?['vehicle_type']),
+              height: 180,
               fit: BoxFit.cover,
-              height: 200,
-              width: double.infinity,
             ),
           ),
           if (selectedVehicle != null)
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 "${selectedVehicle!['model']} (${selectedVehicle!['vehicle_number']})",
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(color: kYellow, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: GridView.count(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
@@ -133,51 +159,29 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                buildCard("Vehicles", Icons.directions_car_filled, Colors.teal.shade700, () async {
-                  final vehicleData = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => VehicleListScreen()),
-                  );
-                  if (vehicleData != null) {
-                    setState(() {
-                      selectedVehicle = vehicleData;
-                    });
-                  }
+                buildCard("Vehicles", Icons.directions_car, () async {
+                  final vehicleData = await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleListScreen()));
+                  if (vehicleData != null) setState(() => selectedVehicle = vehicleData);
                 }),
-                buildCard("Vehicle Info", Icons.settings, const Color.fromARGB(255, 255, 195, 0), () {
+                buildCard("Vehicle Info", Icons.settings, () {
                   if (selectedVehicle != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!)));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
+                    _showSnack("Please select a vehicle.");
                   }
                 }),
-                buildCard("Maintenance Info", Icons.settings, const Color.fromARGB(255, 121, 0, 0), () {
+                buildCard("Maintenance Info", Icons.build, () {
                   if (selectedVehicle != null) {
-                    
-                    // If no vehicle selected, pass blank vehicleId to let screen fetch first vehicle
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MaintenanceInfoScreen(
-                          
-                          vehicleData: selectedVehicle!,
-                        ),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!)));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
+                    _showSnack("Please select a vehicle.");
                   }
                 }),
-                buildCard("Service Schedule", Icons.calendar_today, Colors.deepPurple, () {
+                buildCard("Service Schedule", Icons.calendar_today, () {
                   if (selectedVehicle != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a vehicle.")));
+                    _showSnack("Please select a vehicle.");
                   }
                 }),
               ],
@@ -197,17 +201,17 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         children: [
-          buildCard("OBD-II Connect", Icons.bluetooth, Colors.green.shade700, () {
+          buildCard("OBD-II Connect", Icons.bluetooth, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => BluetoothScanPage()));
           }),
-          buildCard("OBD2 Data", Icons.directions_car, Colors.orange.shade800, () {
+          buildCard("OBD2 Data", Icons.car_repair, () {
             if (BluetoothScanPage.obdCharacteristic != null) {
               Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage(obdCharacteristic: BluetoothScanPage.obdCharacteristic!)));
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please connect to an OBD device first")));
+              _showSnack("Please connect to an OBD device first.");
             }
           }),
-          buildCard("OBD2 Diagnosis", Icons.warning_amber_rounded, Colors.redAccent.shade700, () {
+          buildCard("OBD2 Diagnosis", Icons.warning_amber_rounded, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()));
           }),
         ],
@@ -220,27 +224,32 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.account_circle, size: 90, color: Colors.white),
+          Icon(Icons.account_circle, size: 100, color: kYellow),
           SizedBox(height: 16),
           Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 22)),
-          SizedBox(height: 20),
-          Text(
-            user != null ? "${user!.email}" : "No email available",
-            style: TextStyle(color: Colors.white, fontSize: 18),
-          ),
+          SizedBox(height: 10),
+          Text(user?.email ?? "No email available", style: TextStyle(color: Colors.white70, fontSize: 16)),
           SizedBox(height: 20),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: kYellow,
+              foregroundColor: Colors.black,
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             icon: Icon(Icons.logout),
-            onPressed: _logout,
             label: Text("Logout", style: TextStyle(fontSize: 16)),
+            onPressed: _logout,
           ),
         ],
       ),
     );
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.grey[800],
+    ));
   }
 
   @override
@@ -252,17 +261,19 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: kBackground,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text('Dr. Vehicle', style: TextStyle(color: Colors.white)),
+        backgroundColor: kBackground,
+        title: Text('Dr.Vehicle', style: TextStyle(color: kYellow, fontWeight: FontWeight.bold)),
         centerTitle: true,
+        elevation: 0,
       ),
       body: tabs[_selectedIndex],
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
-              backgroundColor: Colors.greenAccent,
-              child: Icon(Icons.add, color: Colors.black),
+              backgroundColor: kYellow,
+              foregroundColor: Colors.black,
+              child: Icon(Icons.add),
               onPressed: () async {
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleFormScreen()));
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceFormScreen()));
@@ -270,24 +281,15 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : null,
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.grey[900],
-        selectedItemColor: Colors.greenAccent,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: kDarkCard,
+        selectedItemColor: kYellow,
+        unselectedItemColor: Colors.white70,
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.build_circle_outlined),
-            label: 'Maintenance',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Maintenance'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
