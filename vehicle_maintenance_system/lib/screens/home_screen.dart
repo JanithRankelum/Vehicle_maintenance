@@ -201,7 +201,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(context, MaterialPageRoute(builder: (_) => BluetoothScanPage()));
           }),
           buildCard("OBD2 Data", Icons.directions_car, Colors.orange.shade800, () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage()));
+            if (BluetoothScanPage.obdCharacteristic != null) {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage(obdCharacteristic: BluetoothScanPage.obdCharacteristic!)));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please connect to an OBD device first")));
+            }
           }),
           buildCard("OBD2 Diagnosis", Icons.warning_amber_rounded, Colors.redAccent.shade700, () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()));
@@ -241,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> _tabs = [
+    List<Widget> tabs = [
       _buildHomeTab(),
       _buildMaintenanceTab(),
       _buildProfileTab(),
@@ -254,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('Dr. Vehicle', style: TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
-      body: _tabs[_selectedIndex],
+      body: tabs[_selectedIndex],
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               backgroundColor: Colors.greenAccent,

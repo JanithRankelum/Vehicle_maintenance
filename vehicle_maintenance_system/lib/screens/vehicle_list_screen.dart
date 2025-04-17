@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 class VehicleListScreen extends StatelessWidget {
   final String userId = FirebaseAuth.instance.currentUser!.uid;
 
+  VehicleListScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -6,8 +6,7 @@ import 'package:intl/intl.dart';
 class VehicleInfoScreen extends StatefulWidget {
   final Map<String, dynamic> vehicleData;
 
-  const VehicleInfoScreen({Key? key, required this.vehicleData})
-      : super(key: key);
+  const VehicleInfoScreen({super.key, required this.vehicleData});
 
   @override
   State<VehicleInfoScreen> createState() => _VehicleInfoScreenState();

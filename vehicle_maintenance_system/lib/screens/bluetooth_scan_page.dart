@@ -6,6 +6,7 @@ import 'dart:convert';
 
 class BluetoothScanPage extends StatefulWidget {
   const BluetoothScanPage({super.key});
+  static BluetoothCharacteristic? obdCharacteristic;
 
   @override
   _BluetoothScanPageState createState() => _BluetoothScanPageState();

@@ -6,8 +6,7 @@ import 'package:intl/intl.dart';
 class MaintenanceInfoScreen extends StatefulWidget {
   final Map<String, dynamic> vehicleData;
 
-  const MaintenanceInfoScreen({Key? key, required this.vehicleData})
-      : super(key: key);
+  const MaintenanceInfoScreen({super.key, required this.vehicleData});
 
   @override
   State<MaintenanceInfoScreen> createState() => _MaintenanceInfoScreenState();
@@ -27,7 +26,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
 
   Future<void> fetchMaintenanceData() async {
     final user = FirebaseAuth.instance.currentUser;
-    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
+    final vehicleId =
+        widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
     if (user != null && vehicleId != null) {
       final query = await FirebaseFirestore.instance
@@ -63,10 +63,12 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
 
   void _updateMaintenanceInfo() async {
     final user = FirebaseAuth.instance.currentUser;
-    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
+    final vehicleId =
+        widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
     if (user != null && updatedData != null) {
-      final maintenanceCollection = FirebaseFirestore.instance.collection('maintenance');
+      final maintenanceCollection =
+          FirebaseFirestore.instance.collection('maintenance');
       final dataToUpdate = {
         ...updatedData!,
         'updated_at': FieldValue.serverTimestamp(),
@@ -114,8 +116,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                 style: TextStyle(color: Colors.white),
               ),
         tileColor: Colors.grey[850],
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -163,7 +164,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
         child: ListView(
           children: [
             _buildInfoTile("Insurance Company", "insurance_company"),
-            _buildInfoTile("Insurance Policy Number", "insurance_policy_number"),
+            _buildInfoTile(
+                "Insurance Policy Number", "insurance_policy_number"),
             _buildInfoTile("Last Oil Change", "last_oil_change"),
             _buildInfoTile("Last Service", "last_service"),
             _buildInfoTile("Last Tire Replacement", "last_tire_replace"),
@@ -173,8 +175,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
               child: ListTile(
                 title: Text("Last Updated",
                     style: TextStyle(
-                        color: Colors.grey[400],
-                        fontWeight: FontWeight.bold)),
+                        color: Colors.grey[400], fontWeight: FontWeight.bold)),
                 subtitle:
                     Text(formattedTime, style: TextStyle(color: Colors.white)),
                 tileColor: Colors.grey[850],
