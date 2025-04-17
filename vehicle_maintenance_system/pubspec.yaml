@@ -51,6 +51,8 @@ dependencies:
   flutter_local_notifications: ^19.0.0
   timezone: ^0.10.0
   rxdart: ^0.28.0
+  fl_chart: ^0.64.0
+  syncfusion_flutter_gauges: ^29.1.38
   
   
   
