@@ -1,73 +1,135 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:dr_vehicle/screens/local_notifications.dart'; // Adjust path if needed
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class ServiceSchedulePage extends StatefulWidget {
-  final Map<String, dynamic> vehicleData;
+  final Map<String, dynamic>? vehicleData;
 
-  const ServiceSchedulePage({super.key, required this.vehicleData});
+  const ServiceSchedulePage({Key? key, this.vehicleData}) : super(key: key);
 
   @override
   State<ServiceSchedulePage> createState() => _ServiceSchedulePageState();
 }
 
 class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
+  final _formKey = GlobalKey<FormState>();
+  final Map<String, DateTime?> _dates = {
+    'insurance_expiry_date': null,
+    'next_oil_change': null,
+    'next_tire_replace': null,
+    'next_service': null,
+  };
 
-  final _nextOilChangeController = TextEditingController();
-  final _nextTireReplaceController = TextEditingController();
-  final _nextServiceController = TextEditingController();
+  bool isSaving = false;
+  String? currentVehicleId;
+  String? currentMaintenanceId;
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _initNotifications();
-    _autoCalculateNextDates();
+    _loadExistingServiceData();
   }
 
-  void _initNotifications() async {
-    await LocalNotifications.init();
+  Future<void> _selectDate(BuildContext context, String key) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _dates[key] ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _dates[key]) {
+      setState(() {
+        _dates[key] = picked;
+      });
+    }
   }
 
-  void _autoCalculateNextDates() {
-    final dateFormat = DateFormat('yyyy-MM-dd');
+  Future<void> _loadExistingServiceData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    final lastOilStr = widget.vehicleData['last_oil_change'];
-    final lastTireStr = widget.vehicleData['last_tire_replace'];
-    final lastServiceStr = widget.vehicleData['last_service'];
+    final userId = user.uid;
+    final vehicleId = widget.vehicleData?['vehicle_id'];
 
-    final lastOil = DateTime.tryParse(lastOilStr ?? '');
-    final lastTire = DateTime.tryParse(lastTireStr ?? '');
-    final lastService = DateTime.tryParse(lastServiceStr ?? '');
+    QuerySnapshot serviceQuery;
+    String? maintenanceId;
+    String? usedVehicleId;
 
-    final nextOil = lastOil?.add(Duration(days: 180));
-    final nextTire = lastTire?.add(Duration(days: 730));
-    final nextService = lastService?.add(Duration(days: 180));
+    if (vehicleId != null && vehicleId.toString().isNotEmpty) {
+      final maintenanceQuery = await FirebaseFirestore.instance
+          .collection('maintenance')
+          .where('user_id', isEqualTo: userId)
+          .where('vehicle_id', isEqualTo: vehicleId)
+          .limit(1)
+          .get();
 
-    if (nextOil != null) _nextOilChangeController.text = dateFormat.format(nextOil);
-    if (nextTire != null) _nextTireReplaceController.text = dateFormat.format(nextTire);
-    if (nextService != null) _nextServiceController.text = dateFormat.format(nextService);
+      if (maintenanceQuery.docs.isEmpty) return;
+
+      maintenanceId = maintenanceQuery.docs.first.id;
+
+      serviceQuery = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: userId)
+          .where('vehicle_id', isEqualTo: vehicleId)
+          .where('maintenance_id', isEqualTo: maintenanceId)
+          .limit(1)
+          .get();
+
+      usedVehicleId = vehicleId;
+    } else {
+      serviceQuery = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('created_at', descending: false)
+          .limit(1)
+          .get();
+
+      if (serviceQuery.docs.isEmpty) return;
+
+      final serviceData = serviceQuery.docs.first.data() as Map<String, dynamic>;
+      usedVehicleId = serviceData['vehicle_id'];
+      maintenanceId = serviceData['maintenance_id'];
+    }
+
+    if (serviceQuery.docs.isNotEmpty) {
+      final data = serviceQuery.docs.first.data() as Map<String, dynamic>?;
+      setState(() {
+        currentVehicleId = usedVehicleId;
+        currentMaintenanceId = maintenanceId;
+
+        _dates['insurance_expiry_date'] =
+            (data?['insurance_expiry_date'] as Timestamp?)?.toDate();
+        _dates['next_oil_change'] =
+            (data?['next_oil_change'] as Timestamp?)?.toDate();
+        _dates['next_tire_replace'] =
+            (data?['next_tire_replace'] as Timestamp?)?.toDate();
+        _dates['next_service'] =
+            (data?['next_service'] as Timestamp?)?.toDate();
+      });
+    }
   }
 
-  Future<void> _scheduleReminder(String title, String body, DateTime date, int id) async {
-    final tzDate = tz.TZDateTime.from(date.subtract(Duration(days: 7)), tz.local);
+  Future<void> _scheduleNotification(String id, String title, DateTime date) async {
+    final scheduledDate =
+        tz.TZDateTime.from(date.subtract(const Duration(days: 3)), tz.local);
 
-    await LocalNotifications.flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      id.hashCode,
       title,
-      body,
-      tzDate,
+      'Reminder: $title on ${DateFormat.yMMMd().format(date)}',
+      scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'vehicle_service',
-          'Vehicle Service Reminders',
+          'service_reminders',
+          'Service Reminders',
           channelDescription: 'Reminders for vehicle service schedules',
           importance: Importance.max,
           priority: Priority.high,
@@ -78,103 +140,126 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
-  Future<void> _saveSchedule() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
-
-    try {
-      final nextOil = DateTime.parse(_nextOilChangeController.text);
-      final nextTire = DateTime.parse(_nextTireReplaceController.text);
-      final nextService = DateTime.parse(_nextServiceController.text);
-
-      final docId = widget.vehicleData['id'];
-      if (docId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Document ID missing from vehicle data.")),
-        );
-        return;
-      }
-
-      await _firestore.collection('vehicles').doc(uid).collection('vehicles').doc(docId).update({
-        'next_oil_change': _nextOilChangeController.text,
-        'next_tire_replace': _nextTireReplaceController.text,
-        'next_service': _nextServiceController.text,
-        'service_schedule_updated_at': Timestamp.now(),
-      });
-
-      await _scheduleReminder("Oil Change", "Time to change your oil!", nextOil, 1);
-      await _scheduleReminder("Tire Replacement", "Time to replace tires!", nextTire, 2);
-      await _scheduleReminder("General Service", "Time for general service!", nextService, 3);
-
-      await LocalNotifications.showSimpleNotification(
-        title: "Reminders Set",
-        body: "Service schedule saved & reminders activated.",
-        payload: "vehicle_service",
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Service schedule saved!")),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      print("Error saving schedule: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error saving schedule.")),
-      );
-    }
+  Future<void> _cancelPreviousNotifications(String vehicleId) async {
+    await flutterLocalNotificationsPlugin.cancel('insurance_$vehicleId'.hashCode);
+    await flutterLocalNotificationsPlugin.cancel('oil_$vehicleId'.hashCode);
+    await flutterLocalNotificationsPlugin.cancel('tire_$vehicleId'.hashCode);
+    await flutterLocalNotificationsPlugin.cancel('service_$vehicleId'.hashCode);
   }
 
-  Widget _buildDateField(String label, TextEditingController controller) {
-    return TextFormField(
-      controller: controller,
-      readOnly: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(),
-        suffixIcon: Icon(Icons.calendar_today),
-      ),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: DateTime.tryParse(controller.text) ?? DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
-        );
-        if (picked != null) {
-          controller.text = DateFormat('yyyy-MM-dd').format(picked);
-        }
-      },
+  Future<void> _saveServiceSchedule() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => isSaving = true);
+
+    final userId = user.uid;
+    final vehicleId = currentVehicleId;
+
+    if (vehicleId == null || currentMaintenanceId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No valid vehicle or maintenance data found")),
+      );
+      setState(() => isSaving = false);
+      return;
+    }
+
+    final serviceQuery = await FirebaseFirestore.instance
+        .collection('service')
+        .where('user_id', isEqualTo: userId)
+        .where('vehicle_id', isEqualTo: vehicleId)
+        .where('maintenance_id', isEqualTo: currentMaintenanceId)
+        .limit(1)
+        .get();
+
+    if (serviceQuery.docs.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('service')
+          .doc(serviceQuery.docs.first.id)
+          .update({
+        'insurance_expiry_date': _dates['insurance_expiry_date'],
+        'next_oil_change': _dates['next_oil_change'],
+        'next_tire_replace': _dates['next_tire_replace'],
+        'next_service': _dates['next_service'],
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await FirebaseFirestore.instance.collection('service').add({
+        'user_id': userId,
+        'vehicle_id': vehicleId,
+        'maintenance_id': currentMaintenanceId,
+        'insurance_expiry_date': _dates['insurance_expiry_date'],
+        'next_oil_change': _dates['next_oil_change'],
+        'next_tire_replace': _dates['next_tire_replace'],
+        'next_service': _dates['next_service'],
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await _cancelPreviousNotifications(vehicleId);
+
+    if (_dates['insurance_expiry_date'] != null) {
+      await _scheduleNotification('insurance_$vehicleId', 'Insurance Expiry', _dates['insurance_expiry_date']!);
+    }
+    if (_dates['next_oil_change'] != null) {
+      await _scheduleNotification('oil_$vehicleId', 'Oil Change', _dates['next_oil_change']!);
+    }
+    if (_dates['next_tire_replace'] != null) {
+      await _scheduleNotification('tire_$vehicleId', 'Tire Replacement', _dates['next_tire_replace']!);
+    }
+    if (_dates['next_service'] != null) {
+      await _scheduleNotification('service_$vehicleId', 'General Service', _dates['next_service']!);
+    }
+
+    setState(() => isSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Service schedule saved and notifications set.")),
     );
   }
 
-  @override
-  void dispose() {
-    _nextOilChangeController.dispose();
-    _nextTireReplaceController.dispose();
-    _nextServiceController.dispose();
-    super.dispose();
+  Widget _buildDateTile(String label, String key) {
+    return ListTile(
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      subtitle: Text(
+        _dates[key] != null
+            ? DateFormat.yMMMd().format(_dates[key]!)
+            : 'Select Date',
+        style: TextStyle(color: Colors.grey[300]),
+      ),
+      trailing: const Icon(Icons.calendar_today, color: Colors.white),
+      tileColor: Colors.grey[850],
+      onTap: () => _selectDate(context, key),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Service Schedule")),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text("Service Schedule"),
+        backgroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save),
+            onPressed: isSaving ? null : _saveServiceSchedule,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildDateField("Next Oil Change", _nextOilChangeController),
-            SizedBox(height: 16),
-            _buildDateField("Next Tire Replacement", _nextTireReplaceController),
-            SizedBox(height: 16),
-            _buildDateField("Next General Service", _nextServiceController),
-            SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _saveSchedule,
-              child: Text("Save & Set Reminders"),
-            ),
-          ],
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
+              _buildDateTile("Next Oil Change", "next_oil_change"),
+              _buildDateTile("Next Tire Replace", "next_tire_replace"),
+              _buildDateTile("Next Service", "next_service"),
+            ],
+          ),
         ),
       ),
     );

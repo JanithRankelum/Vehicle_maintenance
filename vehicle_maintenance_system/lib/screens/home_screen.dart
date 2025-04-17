@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   User? user;
   Map<String, dynamic>? selectedVehicle;
   bool isFirstLogin = false;
+  String searchQuery = '';
 
   @override
   void initState() {
@@ -124,24 +125,132 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  List<Map<String, dynamic>> get _allCards {
+    return [
+      // Home tab cards
+      {
+        'title': 'Vehicles',
+        'icon': Icons.directions_car,
+        'tab': 0,
+        'onTap': () async {
+          final vehicleData = await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleListScreen()));
+          if (vehicleData != null) setState(() => selectedVehicle = vehicleData);
+        },
+      },
+      {
+        'title': 'Vehicle Info',
+        'icon': Icons.settings,
+        'tab': 0,
+        'onTap': () {
+          if (selectedVehicle != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!)));
+          } else {
+            _showSnack("Please select a vehicle.");
+          }
+        },
+      },
+      {
+        'title': 'Maintenance Info',
+        'icon': Icons.build,
+        'tab': 0,
+        'onTap': () {
+          if (selectedVehicle != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!)));
+          } else {
+            _showSnack("Please select a vehicle.");
+          }
+        },
+      },
+      {
+        'title': 'Service Schedule',
+        'icon': Icons.calendar_today,
+        'tab': 0,
+        'onTap': () {
+          if (selectedVehicle != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
+          } else {
+            _showSnack("Please select a vehicle.");
+          }
+        },
+      },
+      // Maintenance tab cards
+      {
+        'title': 'OBD-II Connect',
+        'icon': Icons.bluetooth,
+        'tab': 1,
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => BluetoothScanPage()));
+        },
+      },
+      {
+        'title': 'OBD2 Data',
+        'icon': Icons.car_repair,
+        'tab': 1,
+        'onTap': () {
+          if (BluetoothScanPage.obdCharacteristic != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage(obdCharacteristic: BluetoothScanPage.obdCharacteristic!)));
+          } else {
+            _showSnack("Please connect to an OBD device first.");
+          }
+        },
+      },
+      {
+        'title': 'OBD2 Diagnosis',
+        'icon': Icons.warning_amber_rounded,
+        'tab': 1,
+        'onTap': () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()));
+        },
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> get _filteredCards {
+    if (searchQuery.isEmpty) {
+      // Return only the cards for the current tab when not searching
+      return _allCards.where((card) => card['tab'] == _selectedIndex).toList();
+    } else {
+      // Return all cards that match the search query, regardless of tab
+      return _allCards
+          .where((card) => card['title'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
+          .toList();
+    }
+  }
+
   Widget _buildHomeTab() {
     return SingleChildScrollView(
       child: Column(
         children: [
-          Container(
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 8)],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.asset(
-              _getVehicleImage(selectedVehicle?['vehicle_type']),
-              height: 180,
-              fit: BoxFit.cover,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              style: TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: kDarkCard,
+                hintText: 'Search...',
+                hintStyle: TextStyle(color: Colors.white54),
+                prefixIcon: Icon(Icons.search, color: kYellow),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+              onChanged: (value) => setState(() => searchQuery = value),
             ),
           ),
-          if (selectedVehicle != null)
+          if (selectedVehicle != null && searchQuery.isEmpty)
+            Container(
+              margin: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 8)],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                _getVehicleImage(selectedVehicle?['vehicle_type']),
+                height: 180,
+                fit: BoxFit.cover,
+              ),
+            ),
+          if (selectedVehicle != null && searchQuery.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
@@ -158,33 +267,10 @@ class _HomeScreenState extends State<HomeScreen> {
               childAspectRatio: 1,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              children: [
-                buildCard("Vehicles", Icons.directions_car, () async {
-                  final vehicleData = await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleListScreen()));
-                  if (vehicleData != null) setState(() => selectedVehicle = vehicleData);
-                }),
-                buildCard("Vehicle Info", Icons.settings, () {
-                  if (selectedVehicle != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!)));
-                  } else {
-                    _showSnack("Please select a vehicle.");
-                  }
-                }),
-                buildCard("Maintenance Info", Icons.build, () {
-                  if (selectedVehicle != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!)));
-                  } else {
-                    _showSnack("Please select a vehicle.");
-                  }
-                }),
-                buildCard("Service Schedule", Icons.calendar_today, () {
-                  if (selectedVehicle != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
-                  } else {
-                    _showSnack("Please select a vehicle.");
-                  }
-                }),
-              ],
+              children: _filteredCards
+                  .where((card) => searchQuery.isNotEmpty || card['tab'] == 0) // Show all home tab cards when not searching
+                  .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
+                  .toList(),
             ),
           ),
         ],
@@ -196,25 +282,15 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: GridView.count(
+        shrinkWrap: true,
         crossAxisCount: 2,
         childAspectRatio: 1,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        children: [
-          buildCard("OBD-II Connect", Icons.bluetooth, () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => BluetoothScanPage()));
-          }),
-          buildCard("OBD2 Data", Icons.car_repair, () {
-            if (BluetoothScanPage.obdCharacteristic != null) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage(obdCharacteristic: BluetoothScanPage.obdCharacteristic!)));
-            } else {
-              _showSnack("Please connect to an OBD device first.");
-            }
-          }),
-          buildCard("OBD2 Diagnosis", Icons.warning_amber_rounded, () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()));
-          }),
-        ],
+        children: _filteredCards
+            .where((card) => searchQuery.isNotEmpty || card['tab'] == 1) // Show all maintenance tab cards when not searching
+            .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
+            .toList(),
       ),
     );
   }
@@ -288,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Maintenance'),
+          BottomNavigationBarItem(icon: Icon(Icons.handyman), label: 'Maintenance'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
