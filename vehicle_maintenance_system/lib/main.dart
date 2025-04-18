@@ -5,12 +5,14 @@ import 'package:dr_vehicle/screens/splash_screen.dart';
 import 'package:dr_vehicle/screens/login_screen.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await requestBluetoothPermissions();
   await scanForDevices();
   await NotiService().init();
+  tz.initializeTimeZones(); // 🔥 Required
   await Firebase.initializeApp();
   runApp(const MyApp());
 }
