@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import FirebaseCore
 import CoreBluetooth
+import flutter_local_notifications
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -18,6 +19,15 @@ import CoreBluetooth
         // Set up the Bluetooth plugin
         setupBluetoothPlugin()
 
+        // set up local notifications
+         FlutterLocalNotificationsPlugin.setPluginRegistrantCallback { (registry) in
+    GeneratedPluginRegistrant.register(with: registry)
+  }
+
+       //  ios flutter_local_notifications
+       if #available(iOS 10.0, *) {
+  UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
+}
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 

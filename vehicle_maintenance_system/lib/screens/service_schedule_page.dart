@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+import 'package:dr_vehicle/screens/noti_service.dart'; // Adjust path as needed
 
 class ServiceSchedulePage extends StatefulWidget {
   final Map<String, dynamic>? vehicleData;
@@ -34,7 +29,6 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
   @override
   void initState() {
     super.initState();
-    tz.initializeTimeZones();
     _loadExistingServiceData();
   }
 
@@ -117,36 +111,6 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     }
   }
 
-  Future<void> _scheduleNotification(String id, String title, DateTime date) async {
-    final scheduledDate =
-        tz.TZDateTime.from(date.subtract(const Duration(days: 3)), tz.local);
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id.hashCode,
-      title,
-      'Reminder: $title on ${DateFormat.yMMMd().format(date)}',
-      scheduledDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'service_reminders',
-          'Service Reminders',
-          channelDescription: 'Reminders for vehicle service schedules',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.dateAndTime,
-    );
-  }
-
-  Future<void> _cancelPreviousNotifications(String vehicleId) async {
-    await flutterLocalNotificationsPlugin.cancel('insurance_$vehicleId'.hashCode);
-    await flutterLocalNotificationsPlugin.cancel('oil_$vehicleId'.hashCode);
-    await flutterLocalNotificationsPlugin.cancel('tire_$vehicleId'.hashCode);
-    await flutterLocalNotificationsPlugin.cancel('service_$vehicleId'.hashCode);
-  }
-
   Future<void> _saveServiceSchedule() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -196,24 +160,9 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       });
     }
 
-    await _cancelPreviousNotifications(vehicleId);
-
-    if (_dates['insurance_expiry_date'] != null) {
-      await _scheduleNotification('insurance_$vehicleId', 'Insurance Expiry', _dates['insurance_expiry_date']!);
-    }
-    if (_dates['next_oil_change'] != null) {
-      await _scheduleNotification('oil_$vehicleId', 'Oil Change', _dates['next_oil_change']!);
-    }
-    if (_dates['next_tire_replace'] != null) {
-      await _scheduleNotification('tire_$vehicleId', 'Tire Replacement', _dates['next_tire_replace']!);
-    }
-    if (_dates['next_service'] != null) {
-      await _scheduleNotification('service_$vehicleId', 'General Service', _dates['next_service']!);
-    }
-
     setState(() => isSaving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Service schedule saved and notifications set.")),
+      const SnackBar(content: Text("Service schedule saved.")),
     );
   }
 
@@ -253,15 +202,34 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         child: Form(
           key: _formKey,
           child: ListView(
-            children: [
-              _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
-              _buildDateTile("Next Oil Change", "next_oil_change"),
-              _buildDateTile("Next Tire Replace", "next_tire_replace"),
-              _buildDateTile("Next Service", "next_service"),
-            ],
+  children: [
+    _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
+    _buildDateTile("Next Oil Change", "next_oil_change"),
+    _buildDateTile("Next Tire Replace", "next_tire_replace"),
+    _buildDateTile("Next Service", "next_service"),
+    const SizedBox(height: 20),
+
+    // 🔔 REMINDER BUTTON
+  ElevatedButton.icon(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    icon: const Icon(Icons.notifications),
+    label: const Text("Set Reminder"),
+    onPressed: () {
+      final notiService = NotiService();
+      notiService.showNotification(
+        title: "Title",
+        body: "Body",
+      );
+    },
+  ),
+],
           ),
         ),
-      ),
-    );
+      ));
+    }
   }
-}
