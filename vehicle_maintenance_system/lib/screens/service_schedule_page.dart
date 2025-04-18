@@ -95,6 +95,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
 
     if (serviceQuery.docs.isNotEmpty) {
       final data = serviceQuery.docs.first.data() as Map<String, dynamic>?;
+
       setState(() {
         currentVehicleId = usedVehicleId;
         currentMaintenanceId = maintenanceId;
@@ -160,9 +161,34 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       });
     }
 
+    // Now set reminders for all upcoming service dates
+    final notiService = NotiService();
+    await notiService.init();
+
+    final now = DateTime.now();
+    Map<String, String> messages = {
+      'insurance_expiry_date': '🛡️ Insurance is about to expire!',
+      'next_oil_change': '🛢️ Time for your next oil change!',
+      'next_tire_replace': '🛞 Time to replace your tires!',
+      'next_service': '🔧 Time for vehicle servicing!',
+    };
+
+    int notificationId = 0;
+    for (var key in _dates.keys) {
+      final date = _dates[key];
+      if (date != null && date.isAfter(now)) {
+        // Schedule a reminder notification
+        await notiService.showNotification(
+          id: notificationId++,
+          title: "Service Reminder",
+          body: messages[key] ?? "Vehicle maintenance reminder",
+        );
+      }
+    }
+
     setState(() => isSaving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Service schedule saved.")),
+      const SnackBar(content: Text("Service schedule saved and reminders set.")),
     );
   }
 
@@ -171,8 +197,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       title: Text(label, style: const TextStyle(color: Colors.white)),
       subtitle: Text(
         _dates[key] != null
-            ? DateFormat.yMMMd().format(_dates[key]!)
-            : 'Select Date',
+            ? DateFormat.yMMMd().format(_dates[key]!): 'Select Date',
         style: TextStyle(color: Colors.grey[300]),
       ),
       trailing: const Icon(Icons.calendar_today, color: Colors.white),
@@ -202,34 +227,52 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         child: Form(
           key: _formKey,
           child: ListView(
-  children: [
-    _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
-    _buildDateTile("Next Oil Change", "next_oil_change"),
-    _buildDateTile("Next Tire Replace", "next_tire_replace"),
-    _buildDateTile("Next Service", "next_service"),
-    const SizedBox(height: 20),
+            children: [
+              _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
+              _buildDateTile("Next Oil Change", "next_oil_change"),
+              _buildDateTile("Next Tire Replace", "next_tire_replace"),
+              _buildDateTile("Next Service", "next_service"),
+              const SizedBox(height: 20),
 
-    // 🔔 REMINDER BUTTON
-  ElevatedButton.icon(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-    icon: const Icon(Icons.notifications),
-    label: const Text("Set Reminder"),
-    onPressed: () {
-      final notiService = NotiService();
-      notiService.showNotification(
-        title: "Title",
-        body: "Body",
-      );
-    },
-  ),
-],
+              // 🔔 REMINDER BUTTON
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.notifications),
+                label: const Text("Set Reminder"),
+                onPressed: () async {
+                  final notiService = NotiService();
+                  await notiService.init();
+
+                  final now = DateTime.now();
+                  Map<String, String> messages = {
+                    'insurance_expiry_date': '🛡️ Insurance is about to expire!',
+                    'next_oil_change': '🛢️ Time for your next oil change!',
+                    'next_tire_replace': '🛞 Time to replace your tires!',
+                    'next_service': '🔧 Time for vehicle servicing!',
+                  };
+
+                  int notificationId = 0;
+                  for (var key in _dates.keys) {
+                    final date = _dates[key];
+                    if (date != null && date.isAfter(now)) {
+                      await notiService.showNotification(
+                        id: notificationId++,
+                        title: "Service Reminder",
+                        body: messages[key] ?? "Vehicle maintenance reminder",
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
           ),
         ),
-      ));
-    }
+      ),
+    );
   }
+}
