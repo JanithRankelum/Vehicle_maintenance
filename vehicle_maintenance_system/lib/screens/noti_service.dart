@@ -1,60 +1,58 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotiService {
-  final notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  static const String channelId = 'service_reminders';
-  static const String channelName = 'Service Reminders';
-  static const String channelDescription =
-      'Reminders for vehicle service schedules';
+  static const String channelId = 'vehicle_reminders';
+  static const String channelName = 'Vehicle Reminders';
+  static const String channelDescription = 'Vehicle service reminders';
 
-  // Initialize the notification service
   Future<void> init() async {
     if (_isInitialized) return;
 
-    const initSettingsAndroid =
+    const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const initSettingsIOS = DarwinInitializationSettings(
+    
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
 
-    const initSettings = InitializationSettings(
-      android: initSettingsAndroid,
-      iOS: initSettingsIOS,
+    await notificationsPlugin.initialize(
+      const InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      ),
     );
 
-    await notificationsPlugin.initialize(initSettings);
-
-    // Create notification channel for Android
-    const androidChannel = AndroidNotificationChannel(
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
       channelId,
       channelName,
       description: channelDescription,
-      importance: Importance.max,
+      importance: Importance.high,
+      playSound: true,
     );
 
     await notificationsPlugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
+        ?.createNotificationChannel(channel);
 
     _isInitialized = true;
   }
 
-  // Define notification details
-  NotificationDetails notificationDetails() {
+  NotificationDetails _notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
         channelId,
         channelName,
         channelDescription: channelDescription,
-        importance: Importance.max,
+        importance: Importance.high,
         priority: Priority.high,
         playSound: true,
       ),
@@ -66,17 +64,42 @@ class NotiService {
     );
   }
 
-  // Show a notification
-  Future<void> showNotification({
-    int id = 0,
-    String? title,
-    String? body,
+  Future<void> scheduleVehicleNotification({
+    required String vehicleId,
+    required String serviceType,
+    required DateTime scheduledDate,
+    required String title,
+    required String body,
   }) async {
+    if (!_isInitialized) await init();
+
+    // Generate unique ID for this vehicle+service combination
+    final notificationId = _generateNotificationId(vehicleId, serviceType);
+
     await notificationsPlugin.show(
-      id,
+      notificationId,
       title,
       body,
-      notificationDetails(),
+      _notificationDetails(),
+      payload: 'vehicle_$vehicleId',
     );
+  }
+
+  Future<void> cancelVehicleNotifications(String vehicleId) async {
+    final serviceTypes = [
+      'insurance_expiry_date',
+      'next_oil_change',
+      'next_tire_replace',
+      'next_service'
+    ];
+
+    for (final type in serviceTypes) {
+      final id = _generateNotificationId(vehicleId, type);
+      await notificationsPlugin.cancel(id);
+    }
+  }
+
+  int _generateNotificationId(String vehicleId, String serviceType) {
+    return '$vehicleId-$serviceType'.hashCode;
   }
 }
