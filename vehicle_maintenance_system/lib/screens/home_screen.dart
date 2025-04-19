@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 import 'vehicle_form_screen.dart';
 import 'vehicle_list_screen.dart';
@@ -30,6 +31,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? selectedVehicle;
   bool isFirstLogin = false;
   String searchQuery = '';
+
+  // Carousel variables for Home tab
+  final List<String> homeCarouselImages = [
+    'assets/logo/Carousel1.png',
+    'assets/logo/Carousel2.png',
+    'assets/logo/Carousel3.png',
+  ];
+  int _currentHomeCarouselIndex = 0;
+
+  // Carousel variables for Maintenance tab
+  final List<String> maintenanceCarouselImages = [
+    'assets/logo/Carousel4.png',
+    'assets/logo/Carousel5.png',
+    'assets/logo/Carousel6.png',
+  ];
+  int _currentMaintenanceCarouselIndex = 0;
 
   @override
   void initState() {
@@ -84,11 +101,17 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: kDarkCard,
-        title: Text("Confirm Logout", style: TextStyle(color: Colors.white)),
-        content: Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+        title: const Text("Confirm Logout", style: TextStyle(color: Colors.white)),
+        content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancel", style: TextStyle(color: kYellow))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text("Logout", style: TextStyle(color: kYellow))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: kYellow)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout", style: TextStyle(color: kYellow)),
+          ),
         ],
       ),
     );
@@ -99,31 +122,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget buildCard(String title, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: kDarkCard,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 6)],
-        ),
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 36, color: kYellow),
-            SizedBox(height: 10),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-          ],
-        ),
+ // Update your buildCard function to this:
+Widget buildCard(String title, IconData icon, VoidCallback onTap) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      decoration: BoxDecoration(
+        color: kDarkCard,
+        borderRadius: BorderRadius.circular(12), // Slightly rounded corners
+        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
       ),
-    );
-  }
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 36, color: kYellow),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   List<Map<String, dynamic>> get _allCards {
     return [
@@ -133,8 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.directions_car,
         'tab': 0,
         'onTap': () async {
-          final vehicleData = await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleListScreen()));
-          if (vehicleData != null) setState(() => selectedVehicle = vehicleData);
+          final vehicleData = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => VehicleListScreen()),
+          );
+          if (vehicleData != null) {
+            setState(() => selectedVehicle = vehicleData);
+          }
         },
       },
       {
@@ -143,7 +176,12 @@ class _HomeScreenState extends State<HomeScreen> {
         'tab': 0,
         'onTap': () {
           if (selectedVehicle != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!),
+              ),
+            );
           } else {
             _showSnack("Please select a vehicle.");
           }
@@ -155,7 +193,12 @@ class _HomeScreenState extends State<HomeScreen> {
         'tab': 0,
         'onTap': () {
           if (selectedVehicle != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!),
+              ),
+            );
           } else {
             _showSnack("Please select a vehicle.");
           }
@@ -167,10 +210,23 @@ class _HomeScreenState extends State<HomeScreen> {
         'tab': 0,
         'onTap': () {
           if (selectedVehicle != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!),
+              ),
+            );
           } else {
             _showSnack("Please select a vehicle.");
           }
+        },
+      },
+      {
+        'title': 'Reports',
+        'icon': Icons.document_scanner,
+        'tab': 0,
+        'onTap': () {
+          _showSnack("Reports feature coming soon!");
         },
       },
       // Maintenance tab cards
@@ -179,7 +235,10 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.bluetooth,
         'tab': 1,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => BluetoothScanPage()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => BluetoothScanPage()),
+          );
         },
       },
       {
@@ -188,7 +247,14 @@ class _HomeScreenState extends State<HomeScreen> {
         'tab': 1,
         'onTap': () {
           if (BluetoothScanPage.obdCharacteristic != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => SendObdCommandPage(obdCharacteristic: BluetoothScanPage.obdCharacteristic!)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SendObdCommandPage(
+                  obdCharacteristic: BluetoothScanPage.obdCharacteristic!,
+                ),
+              ),
+            );
           } else {
             _showSnack("Please connect to an OBD device first.");
           }
@@ -199,7 +265,22 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.warning_amber_rounded,
         'tab': 1,
         'onTap': () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => Obd2DiagnosisPage()),
+          );
+        },
+      },
+
+       {
+        'title': 'OBD-II Report ',
+        'icon': Icons.document_scanner,
+        'tab': 1,
+        'onTap': () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => BluetoothScanPage()),
+          );
         },
       },
     ];
@@ -207,12 +288,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> get _filteredCards {
     if (searchQuery.isEmpty) {
-      // Return only the cards for the current tab when not searching
       return _allCards.where((card) => card['tab'] == _selectedIndex).toList();
     } else {
-      // Return all cards that match the search query, regardless of tab
       return _allCards
-          .where((card) => card['title'].toString().toLowerCase().contains(searchQuery.toLowerCase()))
+          .where((card) => card['title']
+              .toString()
+              .toLowerCase()
+              .contains(searchQuery.toLowerCase()))
           .toList();
     }
   }
@@ -224,24 +306,28 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: TextField(
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: kDarkCard,
                 hintText: 'Search...',
-                hintStyle: TextStyle(color: Colors.white54),
-                prefixIcon: Icon(Icons.search, color: kYellow),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                hintStyle: const TextStyle(color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, color: kYellow),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
               onChanged: (value) => setState(() => searchQuery = value),
             ),
           ),
+          
           if (selectedVehicle != null && searchQuery.isEmpty)
             Container(
-              margin: EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
               ),
               clipBehavior: Clip.antiAlias,
               child: Image.asset(
@@ -255,20 +341,188 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 "${selectedVehicle!['model']} (${selectedVehicle!['vehicle_number']})",
-                style: TextStyle(color: kYellow, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: kYellow,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: GridView.count(
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2,
               childAspectRatio: 1,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: _filteredCards
-                  .where((card) => searchQuery.isNotEmpty || card['tab'] == 0) // Show all home tab cards when not searching
+                  .where((card) => searchQuery.isNotEmpty || card['tab'] == 0)
+                  .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
+                  .toList(),
+            ),
+          ),
+
+          // Carousel at the bottom of Home tab
+          if (searchQuery.isEmpty) ...[
+            const Divider(color: Colors.grey, height: 1, thickness: 0.5),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                "Featured Vehicles",
+                style: TextStyle(
+                  color: kYellow,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            CarouselSlider(
+              items: homeCarouselImages.map((imagePath) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  ),
+                );
+              }).toList(),
+              options: CarouselOptions(
+                height: 180,
+                autoPlay: true,
+                enlargeCenterPage: true,
+                aspectRatio: 16/9,
+                autoPlayCurve: Curves.fastOutSlowIn,
+                enableInfiniteScroll: true,
+                autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                viewportFraction: 0.8,
+                onPageChanged: (index, reason) {
+                  setState(() {
+                    _currentHomeCarouselIndex = index;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: homeCarouselImages.asMap().entries.map((entry) {
+                return Container(
+                  width: 8.0,
+                  height: 8.0,
+                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentHomeCarouselIndex == entry.key
+                        ? kYellow
+                        : Colors.grey.withOpacity(0.4),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceTab() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Carousel at the top of Maintenance tab
+          if (searchQuery.isEmpty) ...[
+            const SizedBox(height: 16),
+            CarouselSlider(
+              items: maintenanceCarouselImages.map((imagePath) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
+                  ),
+                );
+              }).toList(),
+              options: CarouselOptions(
+                height: 180,
+                autoPlay: true,
+                enlargeCenterPage: true,
+                aspectRatio: 16/9,
+                autoPlayCurve: Curves.fastOutSlowIn,
+                enableInfiniteScroll: true,
+                autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                viewportFraction: 0.8,
+                onPageChanged: (index, reason) {
+                  setState(() {
+                    _currentMaintenanceCarouselIndex = index;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: maintenanceCarouselImages.asMap().entries.map((entry) {
+                return Container(
+                  width: 8.0,
+                  height: 8.0,
+                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentMaintenanceCarouselIndex == entry.key
+                        ? kYellow
+                        : Colors.grey.withOpacity(0.4),
+                  ),
+                );
+              }).toList(),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+              child: Text(
+                "Welcome to OBD2 Diagnostics",
+                style: TextStyle(
+                  color: kYellow,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(color: Colors.grey, height: 1, thickness: 0.5),
+            const SizedBox(height: 16),
+          ],
+          
+          // Maintenance cards grid
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              childAspectRatio: 1,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: _filteredCards
+                  .where((card) => searchQuery.isNotEmpty || card['tab'] == 1)
                   .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
                   .toList(),
             ),
@@ -278,42 +532,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMaintenanceTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: GridView.count(
-        shrinkWrap: true,
-        crossAxisCount: 2,
-        childAspectRatio: 1,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        children: _filteredCards
-            .where((card) => searchQuery.isNotEmpty || card['tab'] == 1) // Show all maintenance tab cards when not searching
-            .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
-            .toList(),
-      ),
-    );
-  }
-
   Widget _buildProfileTab() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.account_circle, size: 100, color: kYellow),
-          SizedBox(height: 16),
-          Text("User Profile", style: TextStyle(color: Colors.white, fontSize: 22)),
-          SizedBox(height: 10),
-          Text(user?.email ?? "No email available", style: TextStyle(color: Colors.white70, fontSize: 16)),
-          SizedBox(height: 20),
+          const Icon(Icons.account_circle, size: 100, color: kYellow),
+          const SizedBox(height: 16),
+          const Text(
+            "User Profile",
+            style: TextStyle(color: Colors.white, fontSize: 22),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            user?.email ?? "No email available",
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: kYellow,
               foregroundColor: Colors.black,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            icon: Icon(Icons.logout),
-            label: Text("Logout", style: TextStyle(fontSize: 16)),
+            icon: const Icon(Icons.logout),
+            label: const Text("Logout", style: TextStyle(fontSize: 16)),
             onPressed: _logout,
           ),
         ],
@@ -322,10 +565,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: Colors.grey[800],
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.grey[800],
+      ),
+    );
   }
 
   @override
@@ -340,7 +585,13 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: kBackground,
       appBar: AppBar(
         backgroundColor: kBackground,
-        title: Text('Dr.Vehicle', style: TextStyle(color: kYellow, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Dr.Vehicle',
+          style: TextStyle(
+            color: kYellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
         elevation: 0,
       ),
@@ -349,10 +600,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ? FloatingActionButton(
               backgroundColor: kYellow,
               foregroundColor: Colors.black,
-              child: Icon(Icons.add),
+              child: const Icon(Icons.add),
               onPressed: () async {
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => VehicleFormScreen()));
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceFormScreen()));
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => VehicleFormScreen()),
+                );
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => MaintenanceFormScreen()),
+                );
               },
             )
           : null,
@@ -363,9 +620,18 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.handyman), label: 'Maintenance'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.build),
+            label: 'Maintenance',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );

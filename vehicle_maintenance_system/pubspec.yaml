@@ -53,6 +53,7 @@ dependencies:
   rxdart: ^0.28.0
   fl_chart: ^0.64.0
   syncfusion_flutter_gauges: ^29.1.38
+  carousel_slider: ^5.0.0
   
   
   
@@ -85,7 +86,12 @@ flutter:
     - assets/logo/Van.png
     - assets/logo/Bike.png
     - assets/logo/Suv.png
-
+    - assets/logo/Carousel1.png
+    - assets/logo/Carousel2.png
+    - assets/logo/Carousel3.png
+    - assets/logo/Carousel4.png
+    - assets/logo/Carousel5.png
+    - assets/logo/Carousel6.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
