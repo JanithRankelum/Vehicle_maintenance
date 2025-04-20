@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isFirstLogin = false;
   String searchQuery = '';
 
-  // Carousel variables for Home tab
+  // Carousel variables
   final List<String> homeCarouselImages = [
     'assets/logo/Carousel1.png',
     'assets/logo/Carousel2.png',
@@ -40,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
   int _currentHomeCarouselIndex = 0;
 
-  // Carousel variables for Maintenance tab
   final List<String> maintenanceCarouselImages = [
     'assets/logo/Carousel4.png',
     'assets/logo/Carousel5.png',
@@ -63,36 +62,25 @@ class _HomeScreenState extends State<HomeScreen> {
           .get();
 
       if (vehiclesSnapshot.docs.isEmpty) {
-        setState(() {
-          isFirstLogin = true;
-        });
+        setState(() => isFirstLogin = true);
       } else {
         final firstDoc = vehiclesSnapshot.docs.first;
         final firstVehicle = firstDoc.data();
         firstVehicle['id'] = firstDoc.id;
-        setState(() {
-          selectedVehicle = firstVehicle;
-        });
+        setState(() => selectedVehicle = firstVehicle);
       }
     }
   }
 
   String _getVehicleImage(String? vehicleType) {
     switch (vehicleType?.toLowerCase()) {
-      case 'car':
-        return 'assets/logo/car.png';
-      case 'bike':
-        return 'assets/logo/Bike.png';
-      case 'truck':
-        return 'assets/logo/Truck.png';
-      case 'bus':
-        return 'assets/logo/Bus.png';
-      case 'van':
-        return 'assets/logo/Van.png';
-      case 'suv':
-        return 'assets/logo/Suv.png';
-      default:
-        return 'assets/logo/car.png';
+      case 'car': return 'assets/logo/car.png';
+      case 'bike': return 'assets/logo/Bike.png';
+      case 'truck': return 'assets/logo/Truck.png';
+      case 'bus': return 'assets/logo/Bus.png';
+      case 'van': return 'assets/logo/Van.png';
+      case 'suv': return 'assets/logo/Suv.png';
+      default: return 'assets/logo/car.png';
     }
   }
 
@@ -122,36 +110,64 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
- // Update your buildCard function to this:
-Widget buildCard(String title, IconData icon, VoidCallback onTap) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      decoration: BoxDecoration(
-        color: kDarkCard,
-        borderRadius: BorderRadius.circular(12), // Slightly rounded corners
-        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 36, color: kYellow),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
+  Widget buildCard(String title, IconData icon, VoidCallback onTap) {
+    // Special styling for Reports button only
+  if (title == 'Reports') {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: GestureDetector(
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kDarkCard,
+              foregroundColor: kYellow,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
+            icon: Icon(icon, size: 24),
+            label: Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            onPressed: onTap,
           ),
-        ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+    // Default styling for all other buttons
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: kDarkCard,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: kYellow),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   List<Map<String, dynamic>> get _allCards {
     return [
@@ -221,7 +237,7 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
           }
         },
       },
-      {
+        {
         'title': 'Reports',
         'icon': Icons.document_scanner,
         'tab': 0,
@@ -271,9 +287,8 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
           );
         },
       },
-
-       {
-        'title': 'OBD-II Report ',
+      {
+        'title': 'OBD-II Report',
         'icon': Icons.document_scanner,
         'tab': 1,
         'onTap': () {
@@ -287,16 +302,73 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
   }
 
   List<Map<String, dynamic>> get _filteredCards {
-    if (searchQuery.isEmpty) {
-      return _allCards.where((card) => card['tab'] == _selectedIndex).toList();
-    } else {
-      return _allCards
-          .where((card) => card['title']
-              .toString()
-              .toLowerCase()
-              .contains(searchQuery.toLowerCase()))
-          .toList();
-    }
+    return _allCards.where((card) =>
+        card['title'].toString().toLowerCase().contains(searchQuery.toLowerCase())).toList();
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.grey[800],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBackground,
+      appBar: AppBar(
+        backgroundColor: kBackground,
+        title: const Text(
+          'Dr.Vehicle',
+          style: TextStyle(
+            color: kYellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          _buildHomeTab(),
+          _buildMaintenanceTab(),
+          _buildProfileTab(),
+        ],
+      ),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton(
+              backgroundColor: kYellow,
+              foregroundColor: Colors.black,
+              child: const Icon(Icons.add),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => VehicleFormScreen()),
+                );
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => MaintenanceFormScreen()),
+                );
+              },
+            )
+          : null,
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: kDarkCard,
+        selectedItemColor: kYellow,
+        unselectedItemColor: Colors.white70,
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Maintenance'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
   }
 
   Widget _buildHomeTab() {
@@ -322,7 +394,7 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
             ),
           ),
           
-          if (selectedVehicle != null && searchQuery.isEmpty)
+          if (selectedVehicle != null && searchQuery.isEmpty) ...[
             Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -336,7 +408,6 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
                 fit: BoxFit.cover,
               ),
             ),
-          if (selectedVehicle != null && searchQuery.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
@@ -348,23 +419,40 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
                 ),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 1,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              children: _filteredCards
-                  .where((card) => searchQuery.isNotEmpty || card['tab'] == 0)
-                  .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
-                  .toList(),
-            ),
+          ],
+          
+         Padding(
+  padding: const EdgeInsets.all(16),
+  child: Column(
+    children: [
+      // First row of regular grid items
+      GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        childAspectRatio: 1,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        children: _filteredCards
+            .where((card) => (searchQuery.isNotEmpty || card['tab'] == 0) && card['title'] != 'Reports')
+            .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
+            .toList(),
+      ),
+      
+      // Special Reports button below the grid
+      if (_filteredCards.any((card) => card['title'] == 'Reports' && (searchQuery.isNotEmpty || card['tab'] == 0)))
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: buildCard(
+            'Reports', 
+            Icons.document_scanner, 
+            () => _showSnack("Reports feature coming soon!")
           ),
+        ),
+    ],
+  ),
+),
 
-          // Carousel at the bottom of Home tab
           if (searchQuery.isEmpty) ...[
             const Divider(color: Colors.grey, height: 1, thickness: 0.5),
             const SizedBox(height: 16),
@@ -408,9 +496,7 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
                 autoPlayAnimationDuration: const Duration(milliseconds: 800),
                 viewportFraction: 0.8,
                 onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentHomeCarouselIndex = index;
-                  });
+                  setState(() => _currentHomeCarouselIndex = index);
                 },
               ),
             ),
@@ -442,7 +528,6 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Carousel at the top of Maintenance tab
           if (searchQuery.isEmpty) ...[
             const SizedBox(height: 16),
             CarouselSlider(
@@ -473,9 +558,7 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
                 autoPlayAnimationDuration: const Duration(milliseconds: 800),
                 viewportFraction: 0.8,
                 onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentMaintenanceCarouselIndex = index;
-                  });
+                  setState(() => _currentMaintenanceCarouselIndex = index);
                 },
               ),
             ),
@@ -511,7 +594,6 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
             const SizedBox(height: 16),
           ],
           
-          // Maintenance cards grid
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GridView.count(
@@ -558,79 +640,6 @@ Widget buildCard(String title, IconData icon, VoidCallback onTap) {
             icon: const Icon(Icons.logout),
             label: const Text("Logout", style: TextStyle(fontSize: 16)),
             onPressed: _logout,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Colors.grey[800],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    List<Widget> tabs = [
-      _buildHomeTab(),
-      _buildMaintenanceTab(),
-      _buildProfileTab(),
-    ];
-
-    return Scaffold(
-      backgroundColor: kBackground,
-      appBar: AppBar(
-        backgroundColor: kBackground,
-        title: const Text(
-          'Dr.Vehicle',
-          style: TextStyle(
-            color: kYellow,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: tabs[_selectedIndex],
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              backgroundColor: kYellow,
-              foregroundColor: Colors.black,
-              child: const Icon(Icons.add),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => VehicleFormScreen()),
-                );
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => MaintenanceFormScreen()),
-                );
-              },
-            )
-          : null,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: kDarkCard,
-        selectedItemColor: kYellow,
-        unselectedItemColor: Colors.white70,
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.build),
-            label: 'Maintenance',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
           ),
         ],
       ),
