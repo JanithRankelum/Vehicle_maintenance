@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? selectedVehicle;
   bool isFirstLogin = false;
   String searchQuery = '';
-  int _notificationCount = 0; // Add notification count variable
+  final int _notificationCount = 0; // Add notification count variable
 
   // Carousel variables
   final List<String> homeCarouselImages = [

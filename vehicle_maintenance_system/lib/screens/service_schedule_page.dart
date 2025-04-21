@@ -52,7 +52,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
               surface: kDarkCard,
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: kBackground,
+            dialogTheme: DialogThemeData(backgroundColor: kBackground),
           ),
           child: child!,
         );
@@ -90,7 +90,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       if (serviceQuery.docs.isNotEmpty) {
         final data = serviceQuery.docs.first.data();
         setState(() {
-          _dates['insurance_expiry_date'] = data['insurance_expiry_date']?.toDate();
+          _dates['insurance_expiry_date'] =
+              data['insurance_expiry_date']?.toDate();
           _dates['next_oil_change'] = data['next_oil_change']?.toDate();
           _dates['next_tire_replace'] = data['next_tire_replace']?.toDate();
           _dates['next_service'] = data['next_service']?.toDate();
@@ -217,7 +218,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       ),
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         title: Text(
           label,
           style: TextStyle(
@@ -229,7 +231,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            _dates[key] != null 
+            _dates[key] != null
                 ? DateFormat('MMM d, y').format(_dates[key]!)
                 : 'Not scheduled',
             style: const TextStyle(
