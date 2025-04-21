@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? selectedVehicle;
   bool isFirstLogin = false;
   String searchQuery = '';
+  int _notificationCount = 0; // Add notification count variable
 
   // Carousel variables
   final List<String> homeCarouselImages = [
@@ -328,9 +329,45 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        centerTitle: true,
+         centerTitle: true,
         elevation: 0,
-      ),
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: kYellow),
+                onPressed: () {
+                  _showSnack("Notifications feature coming soon!");
+                },
+              ),
+              if (_notificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      _notificationCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+        ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [

@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+const kYellow = Color(0xFFFFC300);
+const kDarkCard = Color(0xFF1C1C1E);
+const kBackground = Colors.black;
+
 class SendObdCommandPage extends StatefulWidget {
   final BluetoothCharacteristic obdCharacteristic;
 
@@ -16,6 +20,7 @@ class SendObdCommandPage extends StatefulWidget {
 class _SendObdCommandPageState extends State<SendObdCommandPage> {
   Timer? pollingTimer;
   double time = 0;
+  bool isPolling = false;
 
   final Map<String, String> commands = {
     "010C": "Engine RPM",
@@ -28,16 +33,18 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
     "011F": "Engine Run Time",
   };
 
-  final Map<String, List<FlSpot>> dataPoints = {
-    "Engine RPM": [],
-    "Speed": [],
-    "Coolant Temp": [],
-    "Fuel Level": [],
-    "Engine Load": [],
-    "Intake Temp": [],
-    "Manifold Pressure": [],
-    "Engine Run Time": [],
-  };
+  final Map<String, List<FlSpot>> dataPoints = {};
+  final Map<String, double> currentValues = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize data points
+    for (var label in commands.values) {
+      dataPoints[label] = [];
+      currentValues[label] = 0;
+    }
+  }
 
   @override
   void dispose() {
@@ -45,7 +52,16 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
     super.dispose();
   }
 
+  void togglePolling() {
+    if (isPolling) {
+      stopPolling();
+    } else {
+      startRealtimePolling();
+    }
+  }
+
   void startRealtimePolling() {
+    setState(() => isPolling = true);
     pollingTimer?.cancel();
     pollingTimer = Timer.periodic(Duration(seconds: 1), (_) async {
       for (var command in commands.keys) {
@@ -56,6 +72,7 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
   }
 
   void stopPolling() {
+    setState(() => isPolling = false);
     pollingTimer?.cancel();
   }
 
@@ -73,6 +90,7 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
       if (value != null) {
         final label = commands[command]!;
         setState(() {
+          currentValues[label] = value;
           dataPoints[label]!.add(FlSpot(time, value));
           if (dataPoints[label]!.length > 30) {
             dataPoints[label]!.removeAt(0); // keep recent 30
@@ -117,26 +135,77 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
     return null;
   }
 
-  Widget buildChart(List<FlSpot> spots, String label, Color color, String unit) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 4,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              Text('$label ($unit)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(height: 200, child: LineChart(
+  Widget buildChart(String label, List<FlSpot> spots, Color color) {
+    final unit = getUnit(label);
+    final currentValue = currentValues[label]?.toStringAsFixed(1) ?? '0';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: kDarkCard,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: kYellow,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '$currentValue $unit',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 180,
+              child: LineChart(
                 LineChartData(
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true, interval: 5),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 5,
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true, interval: _getInterval(label)),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: _getInterval(label),
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
                     ),
+                    rightTitles: AxisTitles(),
+                    topTitles: AxisTitles(),
                   ),
                   lineBarsData: [
                     LineChartBarData(
@@ -145,15 +214,32 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
                       barWidth: 2,
                       color: color,
                       dotData: FlDotData(show: false),
+                      belowBarData: BarAreaData(show: false),
                     )
                   ],
-                  gridData: FlGridData(show: true),
-                  borderData: FlBorderData(show: true),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: true,
+                    horizontalInterval: _getInterval(label),
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: Colors.grey[800]!,
+                      strokeWidth: 1,
+                    ),
+                    getDrawingVerticalLine: (value) => FlLine(
+                      color: Colors.grey[800]!,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border.all(color: Colors.grey[800]!, width: 1),
+                  ),
                   minY: 0,
+                  lineTouchData: LineTouchData(enabled: false),
                 ),
-              )),
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -190,38 +276,59 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Real-Time OBD-II Monitoring")),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton.icon(
-                onPressed: startRealtimePolling,
-                icon: Icon(Icons.play_arrow),
-                label: Text("Start"),
-              ),
-              ElevatedButton.icon(
-                onPressed: stopPolling,
-                icon: Icon(Icons.pause),
-                label: Text("Stop"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              ),
-            ],
+      backgroundColor: kBackground,
+      appBar: AppBar(
+        title: const Text(
+          'OBD-II Data',
+          style: TextStyle(
+            color: kYellow,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: dataPoints.entries.map((entry) {
-                  final color = Colors.primaries[entry.key.hashCode % Colors.primaries.length];
-                  return buildChart(entry.value, entry.key, color, getUnit(entry.key));
+        ),
+        backgroundColor: kBackground,
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isPolling ? Colors.red[800] : kYellow,
+                foregroundColor: isPolling ? Colors.white : Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: togglePolling,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isPolling ? Icons.stop : Icons.play_arrow),
+                  const SizedBox(width: 8),
+                  Text(
+                    isPolling ? 'STOP POLLING' : 'START POLLING',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                children: commands.values.map((label) {
+                  final color = Colors.primaries[label.hashCode % Colors.primaries.length];
+                  return buildChart(label, dataPoints[label]!, color);
                 }).toList(),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
