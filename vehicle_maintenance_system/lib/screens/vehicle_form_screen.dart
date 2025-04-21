@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:dr_vehicle/screens/maintenance_form.dart'; // Make sure this path is correct
+import 'package:dr_vehicle/screens/maintenance_form.dart';
+
+const kYellow = Color(0xFFFFC300);
+const kDarkCard = Color(0xFF1C1C1E);
+const kBackground = Colors.black;
 
 class VehicleFormScreen extends StatefulWidget {
   final Map<String, dynamic>? vehicleData;
@@ -51,61 +55,108 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     }
   }
 
-  void _saveVehicleData() async {
+  Future<void> _saveVehicleData() async {
     if (_formKey.currentState!.validate()) {
-      String userId = _auth.currentUser!.uid;
+      try {
+        String userId = _auth.currentUser!.uid;
 
-      await FirebaseFirestore.instance.collection('vehicles').add({
-        'user_id': userId,
-        'owner_name': _ownerNameController.text,
-        'vehicle_number': _vehicleNumberController.text,
-        'vehicle_company': _vehicleCompanyController.text,
-        'vehicle_type': _vehicleTypeController.text,
-        'model': _modelController.text,
-        'year': _yearController.text,
-        'registration_number': _registrationNumberController.text,
-        'engine_number': _engineNumberController.text,
-        'chassis_number': _chassisNumberController.text,
-        'fuel_type': _fuelTypeController.text,
-        'updated_at': Timestamp.now(),
-      });
+        await FirebaseFirestore.instance.collection('vehicles').add({
+          'user_id': userId,
+          'owner_name': _ownerNameController.text,
+          'vehicle_number': _vehicleNumberController.text,
+          'vehicle_company': _vehicleCompanyController.text,
+          'vehicle_type': _vehicleTypeController.text,
+          'model': _modelController.text,
+          'year': _yearController.text,
+          'registration_number': _registrationNumberController.text,
+          'engine_number': _engineNumberController.text,
+          'chassis_number': _chassisNumberController.text,
+          'fuel_type': _fuelTypeController.text,
+          'updated_at': Timestamp.now(),
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vehicle details saved successfully!')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vehicle details saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MaintenanceFormScreen()),
-      );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MaintenanceFormScreen()),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving vehicle: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Vehicle Information")),
+      backgroundColor: kBackground,
+      appBar: AppBar(
+        title: const Text(
+          'VEHICLE INFORMATION',
+          style: TextStyle(
+            color: kYellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: kBackground,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               children: [
                 _buildTextField("Owner Name", _ownerNameController),
+                const SizedBox(height: 16),
                 _buildTextField("Vehicle Number", _vehicleNumberController),
+                const SizedBox(height: 16),
                 _buildTextField("Vehicle Company", _vehicleCompanyController),
+                const SizedBox(height: 16),
                 _buildDropdownField("Vehicle Type", _vehicleTypeController, vehicleTypes),
+                const SizedBox(height: 16),
                 _buildTextField("Model", _modelController),
+                const SizedBox(height: 16),
                 _buildTextField("Year", _yearController, keyboardType: TextInputType.number),
+                const SizedBox(height: 16),
                 _buildTextField("Registration Number", _registrationNumberController),
+                const SizedBox(height: 16),
                 _buildTextField("Engine Number", _engineNumberController),
+                const SizedBox(height: 16),
                 _buildTextField("Chassis Number", _chassisNumberController),
+                const SizedBox(height: 16),
                 _buildDropdownField("Fuel Type", _fuelTypeController, fuelTypes),
-                SizedBox(height: 20),
+                const SizedBox(height: 24),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kYellow,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: _saveVehicleData,
-                  child: Text("Save & Continue"),
+                  child: const Text(
+                    'SAVE & CONTINUE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -119,7 +170,25 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       {int maxLines = 1, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(labelText: label),
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: kYellow),
+        filled: true,
+        fillColor: kDarkCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kYellow),
+        ),
+      ),
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: (value) => value!.isEmpty ? "Required" : null,
@@ -128,8 +197,27 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
 
   Widget _buildDropdownField(String label, TextEditingController controller, List<String> options) {
     return DropdownButtonFormField<String>(
-      decoration: InputDecoration(labelText: label),
       value: controller.text.isNotEmpty ? controller.text : null,
+      dropdownColor: kDarkCard,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: kYellow),
+        filled: true,
+        fillColor: kDarkCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kYellow),
+        ),
+      ),
       onChanged: (String? newValue) {
         setState(() {
           controller.text = newValue!;
@@ -138,7 +226,10 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       items: options.map((option) {
         return DropdownMenuItem(
           value: option,
-          child: Text(option),
+          child: Text(
+            option,
+            style: const TextStyle(color: Colors.white),
+          ),
         );
       }).toList(),
       validator: (value) => value == null || value.isEmpty ? 'Please select $label' : null,
