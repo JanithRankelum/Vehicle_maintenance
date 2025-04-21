@@ -3,6 +3,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:dr_vehicle/screens/prediction_page.dart';
 
+const kYellow = Color(0xFFFFC300);
+const kDarkCard = Color(0xFF1C1C1E);
+const kBackground = Colors.black;
+
 class Obd2DiagnosisPage extends StatefulWidget {
   final Map<String, dynamic>? scannedData;
 
@@ -14,7 +18,6 @@ class Obd2DiagnosisPage extends StatefulWidget {
 
 class _Obd2DiagnosisPageState extends State<Obd2DiagnosisPage> {
   final _formKey = GlobalKey<FormState>();
-
   final Map<String, TextEditingController> controllers = {
     "COOLANT_TEMPERATURE": TextEditingController(),
     "ENGINE_LOAD": TextEditingController(),
@@ -26,13 +29,11 @@ class _Obd2DiagnosisPageState extends State<Obd2DiagnosisPage> {
     "INTAKE_MANIFOLD_PRESSURE": TextEditingController(),
   };
 
-  String result = "";
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill form fields with real-time scanned data if available
     if (widget.scannedData != null) {
       widget.scannedData!.forEach((key, value) {
         if (controllers.containsKey(key)) {
@@ -48,7 +49,6 @@ class _Obd2DiagnosisPageState extends State<Obd2DiagnosisPage> {
     setState(() => isLoading = true);
 
     try {
-      // Collect input values from the form
       List<double> inputValues = [
         double.tryParse(controllers["COOLANT_TEMPERATURE"]!.text) ?? 0.0,
         double.tryParse(controllers["ENGINE_LOAD"]!.text) ?? 0.0,
@@ -60,13 +60,10 @@ class _Obd2DiagnosisPageState extends State<Obd2DiagnosisPage> {
         double.tryParse(controllers["INTAKE_MANIFOLD_PRESSURE"]!.text) ?? 0.0,
       ];
 
-      final url = Uri.parse(
-          "https://kelum0602-vehicle-maintenance.hf.space/predict");
-
       final response = await http.post(
-        url,
+        Uri.parse("https://kelum0602-vehicle-maintenance.hf.space/predict"),
         headers: {"Content-Type": "application/json"},
-        body: json.encode({"data": [inputValues]}), // Gradio expects 2D array
+        body: json.encode({"data": [inputValues]}),
       );
 
       if (response.statusCode == 200) {
@@ -79,22 +76,29 @@ class _Obd2DiagnosisPageState extends State<Obd2DiagnosisPage> {
 🛣️ Mileage: ${predictions["Mileage"].toStringAsFixed(2)}
 ''';
 
-if (context.mounted) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => PredictionPage(predictionResult: resultText),
-    ),
-  );
-}
-
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PredictionPage(predictionResult: resultText),
+            ),
+          );
+        }
       } else {
-        print("Error: ${response.statusCode}");
-        print("Body: ${response.body}");
-        setState(() => result = "❌ Failed: ${response.reasonPhrase}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to get prediction: ${response.reasonPhrase}"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      setState(() => result = "❌ Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
 
     setState(() => isLoading = false);
@@ -108,38 +112,91 @@ if (context.mounted) {
     super.dispose();
   }
 
+  Widget _buildInputField(String key) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controllers[key],
+        keyboardType: TextInputType.number,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: key.replaceAll("_", " ").toUpperCase(),
+          labelStyle: const TextStyle(color: kYellow),
+          filled: true,
+          fillColor: kDarkCard,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kYellow),
+          ),
+        ),
+        validator: (val) => val == null || val.isEmpty ? "Required" : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("OBD-II Maintenance Diagnosis")),
+      backgroundColor: kBackground,
+      appBar: AppBar(
+        title: const Text(
+          'OBD-II Diagnosis',
+          style: TextStyle(
+            color: kYellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: kBackground,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
-          children: [
-            for (var entry in controllers.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TextFormField(
-                  controller: entry.value,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: entry.key.replaceAll("_", " ").toUpperCase(),
-                    border: const OutlineInputBorder(),
+            children: [
+              for (var key in controllers.keys) _buildInputField(key),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kYellow,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  validator: (val) =>
-                      val == null || val.isEmpty ? "Required" : null,
                 ),
+                onPressed: isLoading ? null : predictFromAPI,
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.black,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'RUN DIAGNOSIS',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
               ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: isLoading ? null : predictFromAPI,
-              child: Text(isLoading ? "Predicting..." : "Diagnose Vehicle"),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 }
