@@ -1,10 +1,45 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class NotiService {
   final FlutterLocalNotificationsPlugin notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+      
+  Future<void> cancelAllForVehicle(String vehicleId) async {
+    // Cancel all notifications for the specific vehicle
+    final notifications = await FlutterLocalNotificationsPlugin().pendingNotificationRequests();
+    for (var notification in notifications) {
+      if (notification.payload?.contains(vehicleId) ?? false) {
+        await FlutterLocalNotificationsPlugin().cancel(notification.id);
+      }
+    }
+  }
 
-  bool _isInitialized = false;
+Future<void> schedule({
+  required String vehicleId,
+  required String serviceType,
+  required DateTime scheduledDate,
+  required String title,
+  required String body,
+}) async {
+  // Implement notification scheduling logic here
+  if (!_isInitialized) await init();
+
+  final notificationId = _generateNotificationId(vehicleId, serviceType);
+
+  await notificationsPlugin.zonedSchedule(
+    notificationId,
+    title,
+    body,
+    tz.TZDateTime.from(scheduledDate, tz.local),
+    _notificationDetails(),
+    matchDateTimeComponents: DateTimeComponents.dateAndTime,
+    payload: 'vehicle_$vehicleId',
+    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+  );
+}
+
+bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
   static const String channelId = 'vehicle_reminders';
@@ -99,7 +134,7 @@ class NotiService {
     }
   }
 
-  int _generateNotificationId(String vehicleId, String serviceType) {
-    return '$vehicleId-$serviceType'.hashCode;
+    int _generateNotificationId(String vehicleId, String serviceType) {
+      return '$vehicleId-$serviceType'.hashCode;
+    }
   }
-}

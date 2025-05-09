@@ -37,7 +37,7 @@ dependencies:
   
   flutter_blue_plus: ^1.21.1  # Bluetooth communication
   provider: ^6.0.5  # State management
-  permission_handler: ^11.4.0
+  permission_handler: ^12.0.0+1
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   flutter_gif: ^0.0.4
@@ -51,9 +51,11 @@ dependencies:
   flutter_local_notifications: ^19.1.0
   timezone: ^0.10.0
   rxdart: ^0.28.0
-  fl_chart: ^0.64.0
+  fl_chart: ^0.71.0
   syncfusion_flutter_gauges: ^29.1.38
   carousel_slider: ^5.0.0
+  flutter_local_notifications_platform_interface: ^9.0.0
+  
   
   
   
@@ -92,6 +94,7 @@ flutter:
     - assets/logo/Carousel4.png
     - assets/logo/Carousel5.png
     - assets/logo/Carousel6.png
+    - assets/logo/google_icon.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

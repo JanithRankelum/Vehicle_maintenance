@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:intl/intl.dart';
-import 'dart:convert';
 
 const kYellow = Color(0xFFFFC300);
 const kDarkCard = Color(0xFF1C1C1E);
@@ -11,58 +9,99 @@ const kBackground = Colors.black;
 
 class BluetoothScanPage extends StatefulWidget {
   const BluetoothScanPage({super.key});
-  static BluetoothCharacteristic? obdCharacteristic;
+
+  static BluetoothDevice? connectedDevice;
+  static dynamic obdCharacteristic; // <--- Added line
 
   @override
   _BluetoothScanPageState createState() => _BluetoothScanPageState();
 }
 
 class _BluetoothScanPageState extends State<BluetoothScanPage> {
-  List<ScanResult> scanResults = [];
+  List<BluetoothDevice> devices = [];
   bool isScanning = false;
-  StreamSubscription<List<ScanResult>>? scanSubscription;
-  BluetoothDevice? connectedDevice;
+  StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
+  StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
   Map<String, bool> connectingDevices = {};
-  BluetoothCharacteristic? obdCharacteristic;
+
+  BluetoothDevice? get connectedDevice => BluetoothScanPage.connectedDevice;
 
   @override
   void initState() {
     super.initState();
-    enableBluetooth();
-  }
-
-  Future<void> enableBluetooth() async {
-    if (!(await FlutterBluePlus.isOn)) {
-      await FlutterBluePlus.turnOn();
+    _initBluetooth();
+    if (connectedDevice != null) {
+      _monitorConnection();
     }
   }
 
-  Future<bool> checkAndRequestPermissions() async {
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.locationWhenInUse,
-    ].request();
+  Future<void> _initBluetooth() async {
+    _adapterStateSubscription = FlutterBluePlus.adapterState.listen((state) {
+      if (state == BluetoothAdapterState.on) {
+        if (connectedDevice != null) {
+          _monitorConnection();
+        }
+      } else {
+        _clearConnection();
+        setState(() {
+          isScanning = false;
+          devices.clear();
+        });
+      }
+    });
 
-    return statuses.values.every((status) => status.isGranted);
+    await _checkAndRequestPermissions();
+  }
+
+  void _monitorConnection() {
+    connectedDevice?.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        _clearConnection();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Device disconnected"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  void _clearConnection() {
+    if (BluetoothScanPage.connectedDevice != null) {
+      BluetoothScanPage.connectedDevice = null;
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  Future<bool> _checkAndRequestPermissions() async {
+    if (await Permission.bluetooth.request().isGranted &&
+        await Permission.bluetoothConnect.request().isGranted &&
+        await Permission.bluetoothScan.request().isGranted) {
+      return true;
+    }
+    return false;
   }
 
   void scanForDevices() async {
-    if (!await FlutterBluePlus.isAvailable || !await FlutterBluePlus.isOn) {
+    if (!await FlutterBluePlus.isSupported) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please enable Bluetooth manually"),
+        const SnackBar(
+          content: Text("Bluetooth not supported on this device"),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    bool hasPermissions = await checkAndRequestPermissions();
-    if (!hasPermissions) {
+    if (!await FlutterBluePlus.isOn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Permissions not granted"),
+        const SnackBar(
+          content: Text("Please enable Bluetooth"),
           backgroundColor: Colors.red,
         ),
       );
@@ -71,20 +110,36 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
 
     setState(() {
       isScanning = true;
-      scanResults.clear();
+      devices.clear();
     });
 
-    await FlutterBluePlus.stopScan();
-    FlutterBluePlus.startScan(timeout: Duration(seconds: 10));
+    FlutterBluePlus.startScan(
+      timeout: const Duration(seconds: 15),
+      androidUsesFineLocation: true,
+    );
 
-    scanSubscription?.cancel();
-    scanSubscription = FlutterBluePlus.scanResults.listen((results) {
-      setState(() => scanResults = results);
+    _scanResultsSubscription?.cancel();
+    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
+      for (ScanResult result in results) {
+        if (!devices.contains(result.device)) {
+          setState(() {
+            devices.add(result.device);
+          });
+        }
+      }
+    }, onError: (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Scan error: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
     });
 
-    Future.delayed(Duration(seconds: 10), () async {
-      await FlutterBluePlus.stopScan();
+    Future.delayed(const Duration(seconds: 15), () {
+      FlutterBluePlus.stopScan();
       setState(() => isScanning = false);
+      _scanResultsSubscription?.cancel();
     });
   }
 
@@ -94,37 +149,21 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
 
     try {
       await device.connect(autoConnect: false);
-      List<BluetoothService> services = await device.discoverServices();
 
-      for (BluetoothService service in services) {
-        for (BluetoothCharacteristic characteristic in service.characteristics) {
-          if (characteristic.properties.write && characteristic.properties.read) {
-            obdCharacteristic = characteristic;
-            BluetoothScanPage.obdCharacteristic = characteristic;
-            await sendObdCommand("010C");
-            
-            setState(() {
-              connectedDevice = device;
-              connectingDevices[deviceId] = false;
-            });
+      BluetoothScanPage.connectedDevice = device;
+      _monitorConnection();
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Connected & OBD-II Ready!"),
-                backgroundColor: Colors.green,
-              ),
-            );
-            return;
-          }
-        }
-      }
+      setState(() {
+        connectingDevices[deviceId] = false;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("No OBD-II characteristic found"),
-          backgroundColor: Colors.red,
+        const SnackBar(
+          content: Text("Connected to OBD2 device!"),
+          backgroundColor: Colors.green,
         ),
       );
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -132,58 +171,37 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
           backgroundColor: Colors.red,
         ),
       );
-    }
-
-    setState(() => connectingDevices[deviceId] = false);
-  }
-
-  Future<void> sendObdCommand(String command) async {
-    if (obdCharacteristic == null) return;
-
-    try {
-      List<int> obdCommand = utf8.encode("$command\r");
-      await obdCharacteristic!.write(obdCommand, withoutResponse: true);
-      await Future.delayed(Duration(milliseconds: 200));
-      
-      List<int> response = await obdCharacteristic!.read();
-      String responseStr = utf8.decode(response);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("OBD-II Response: $responseStr"),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to send OBD-II command: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() => connectingDevices[deviceId] = false);
     }
   }
 
   Future<void> disconnectDevice() async {
     if (connectedDevice != null) {
-      await connectedDevice!.disconnect();
-      setState(() {
-        connectedDevice = null;
-        obdCharacteristic = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Device disconnected"),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      try {
+        await connectedDevice!.disconnect();
+        _clearConnection();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Device disconnected"),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Disconnection failed: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
-    scanSubscription?.cancel();
-    connectedDevice?.disconnect();
+    _adapterStateSubscription?.cancel();
+    _scanResultsSubscription?.cancel();
     super.dispose();
   }
 
@@ -226,8 +244,44 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
               ),
             ),
             const SizedBox(height: 16),
+            if (connectedDevice != null) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: kDarkCard,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  leading: Icon(
+                    Icons.bluetooth_connected,
+                    color: kYellow,
+                  ),
+                  title: Text(
+                    connectedDevice!.name.isNotEmpty ? connectedDevice!.name : "Unknown Device",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "Connected",
+                    style: const TextStyle(color: Colors.green),
+                  ),
+                  trailing: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[800],
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: disconnectDevice,
+                    child: const Text("DISCONNECT"),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Expanded(
-              child: scanResults.isEmpty
+              child: devices.isEmpty
                   ? Center(
                       child: Text(
                         isScanning ? "Scanning for devices..." : "No devices found",
@@ -238,13 +292,12 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
                       ),
                     )
                   : ListView.separated(
-                      itemCount: scanResults.length,
+                      itemCount: devices.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final device = scanResults[index].device;
+                        final device = devices[index];
                         String deviceId = device.id.toString();
                         bool isConnecting = connectingDevices[deviceId] ?? false;
-                        bool isConnected = connectedDevice?.id == device.id;
 
                         return Container(
                           decoration: BoxDecoration(
@@ -254,9 +307,9 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            leading: Icon(
-                              isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
-                              color: isConnected ? kYellow : Colors.white70,
+                            leading: const Icon(
+                              Icons.bluetooth,
+                              color: Colors.white70,
                             ),
                             title: Text(
                               device.name.isNotEmpty ? device.name : "Unknown Device",
@@ -269,32 +322,23 @@ class _BluetoothScanPageState extends State<BluetoothScanPage> {
                               device.id.toString(),
                               style: const TextStyle(color: Colors.white70),
                             ),
-                            trailing: isConnected
-                                ? ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red[800],
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: disconnectDevice,
-                                    child: const Text("DISCONNECT"),
-                                  )
-                                : ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: kYellow,
-                                      foregroundColor: Colors.black,
-                                    ),
-                                    onPressed: isConnecting ? null : () => connectToDevice(device),
-                                    child: isConnecting
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.black,
-                                            ),
-                                          )
-                                        : const Text("CONNECT"),
-                                  ),
+                            trailing: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kYellow,
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: isConnecting ? null : () => connectToDevice(device),
+                              child: isConnecting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.black,
+                                      ),
+                                    )
+                                  : const Text("CONNECT"),
+                            ),
                           ),
                         );
                       },
