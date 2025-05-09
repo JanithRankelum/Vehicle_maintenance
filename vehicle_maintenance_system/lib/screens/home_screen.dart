@@ -75,13 +75,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _getVehicleImage(String? vehicleType) {
     switch (vehicleType?.toLowerCase()) {
-      case 'car': return 'assets/logo/car.png';
-      case 'bike': return 'assets/logo/Bike.png';
-      case 'truck': return 'assets/logo/Truck.png';
-      case 'bus': return 'assets/logo/Bus.png';
-      case 'van': return 'assets/logo/Van.png';
-      case 'suv': return 'assets/logo/Suv.png';
-      default: return 'assets/logo/car.png';
+      case 'car':
+        return 'assets/logo/car.png';
+      case 'bike':
+        return 'assets/logo/Bike.png';
+      case 'truck':
+        return 'assets/logo/Truck.png';
+      case 'bus':
+        return 'assets/logo/Bus.png';
+      case 'van':
+        return 'assets/logo/Van.png';
+      case 'suv':
+        return 'assets/logo/Suv.png';
+      default:
+        return 'assets/logo/car.png';
     }
   }
 
@@ -90,8 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: kDarkCard,
-        title: const Text("Confirm Logout", style: TextStyle(color: Colors.white)),
-        content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+        title:
+            const Text("Confirm Logout", style: TextStyle(color: Colors.white)),
+        content: const Text("Are you sure you want to logout?",
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -107,38 +116,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (confirm == true) {
       await _auth.signOut();
-      Navigator.of(context).pushNamedAndRemoveUntil('/login_screen', (_) => false);
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil('/login_screen', (_) => false);
     }
   }
 
   Widget buildCard(String title, IconData icon, VoidCallback onTap) {
     // Special styling for Reports button only
-  if (title == 'Reports') {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: GestureDetector(
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kDarkCard,
-              foregroundColor: kYellow,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+    if (title == 'Reports') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: GestureDetector(
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kDarkCard,
+                foregroundColor: kYellow,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
+              icon: Icon(icon, size: 24),
+              label: Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              onPressed: onTap,
             ),
-            icon: Icon(icon, size: 24),
-            label: Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            onPressed: onTap,
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
     // Default styling for all other buttons
     return GestureDetector(
@@ -196,7 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => VehicleInfoScreen(vehicleData: selectedVehicle!),
+                builder: (_) =>
+                    VehicleInfoScreen(vehicleData: selectedVehicle!),
               ),
             );
           } else {
@@ -213,7 +225,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => MaintenanceInfoScreen(vehicleData: selectedVehicle!),
+                builder: (_) =>
+                    MaintenanceInfoScreen(vehicleData: selectedVehicle!),
               ),
             );
           } else {
@@ -230,7 +243,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ServiceSchedulePage(vehicleData: selectedVehicle!),
+                builder: (_) =>
+                    ServiceSchedulePage(vehicleData: selectedVehicle!),
               ),
             );
           } else {
@@ -238,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
       },
-        {
+      {
         'title': 'Reports',
         'icon': Icons.document_scanner,
         'tab': 0,
@@ -303,8 +317,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredCards {
-    return _allCards.where((card) =>
-        card['title'].toString().toLowerCase().contains(searchQuery.toLowerCase())).toList();
+    return _allCards
+        .where((card) => card['title']
+            .toString()
+            .toLowerCase()
+            .contains(searchQuery.toLowerCase()))
+        .toList();
   }
 
   void _showSnack(String msg) {
@@ -329,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-         centerTitle: true,
+        centerTitle: true,
         elevation: 0,
         actions: [
           Stack(
@@ -367,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
-        ),
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
@@ -401,7 +419,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Maintenance'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.build), label: 'Maintenance'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
@@ -430,13 +449,14 @@ class _HomeScreenState extends State<HomeScreen> {
               onChanged: (value) => setState(() => searchQuery = value),
             ),
           ),
-          
           if (selectedVehicle != null && searchQuery.isEmpty) ...[
             Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 8)
+                ],
               ),
               clipBehavior: Clip.antiAlias,
               child: Image.asset(
@@ -457,39 +477,39 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-          
-         Padding(
-  padding: const EdgeInsets.all(16),
-  child: Column(
-    children: [
-      // First row of regular grid items
-      GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        childAspectRatio: 1,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        children: _filteredCards
-            .where((card) => (searchQuery.isNotEmpty || card['tab'] == 0) && card['title'] != 'Reports')
-            .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
-            .toList(),
-      ),
-      
-      // Special Reports button below the grid
-      if (_filteredCards.any((card) => card['title'] == 'Reports' && (searchQuery.isNotEmpty || card['tab'] == 0)))
-        Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: buildCard(
-            'Reports', 
-            Icons.document_scanner, 
-            () => _showSnack("Reports feature coming soon!")
-          ),
-        ),
-    ],
-  ),
-),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // First row of regular grid items
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  childAspectRatio: 1,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  children: _filteredCards
+                      .where((card) =>
+                          (searchQuery.isNotEmpty || card['tab'] == 0) &&
+                          card['title'] != 'Reports')
+                      .map((card) =>
+                          buildCard(card['title'], card['icon'], card['onTap']))
+                      .toList(),
+                ),
 
+                // Special Reports button below the grid
+                if (_filteredCards.any((card) =>
+                    card['title'] == 'Reports' &&
+                    (searchQuery.isNotEmpty || card['tab'] == 0)))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: buildCard('Reports', Icons.document_scanner,
+                        () => _showSnack("Reports feature coming soon!")),
+                  ),
+              ],
+            ),
+          ),
           if (searchQuery.isEmpty) ...[
             const Divider(color: Colors.grey, height: 1, thickness: 0.5),
             const SizedBox(height: 16),
@@ -511,7 +531,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 8)
+                    ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
@@ -527,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 180,
                 autoPlay: true,
                 enlargeCenterPage: true,
-                aspectRatio: 16/9,
+                aspectRatio: 16 / 9,
                 autoPlayCurve: Curves.fastOutSlowIn,
                 enableInfiniteScroll: true,
                 autoPlayAnimationDuration: const Duration(milliseconds: 800),
@@ -544,7 +566,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Container(
                   width: 8.0,
                   height: 8.0,
-                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _currentHomeCarouselIndex == entry.key
@@ -573,7 +596,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 8)
+                    ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
@@ -589,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 180,
                 autoPlay: true,
                 enlargeCenterPage: true,
-                aspectRatio: 16/9,
+                aspectRatio: 16 / 9,
                 autoPlayCurve: Curves.fastOutSlowIn,
                 enableInfiniteScroll: true,
                 autoPlayAnimationDuration: const Duration(milliseconds: 800),
@@ -606,7 +631,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Container(
                   width: 8.0,
                   height: 8.0,
-                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _currentMaintenanceCarouselIndex == entry.key
@@ -630,7 +656,6 @@ class _HomeScreenState extends State<HomeScreen> {
             const Divider(color: Colors.grey, height: 1, thickness: 0.5),
             const SizedBox(height: 16),
           ],
-          
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: GridView.count(
@@ -642,7 +667,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSpacing: 16,
               children: _filteredCards
                   .where((card) => searchQuery.isNotEmpty || card['tab'] == 1)
-                  .map((card) => buildCard(card['title'], card['icon'], card['onTap']))
+                  .map((card) =>
+                      buildCard(card['title'], card['icon'], card['onTap']))
                   .toList(),
             ),
           ),

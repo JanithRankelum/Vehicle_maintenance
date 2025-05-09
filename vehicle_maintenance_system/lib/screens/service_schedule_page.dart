@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:dr_vehicle/screens/noti_service.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 const kYellow = Color(0xFFFFC300);
 const kDarkCard = Color(0xFF1C1C1E);
@@ -29,12 +31,16 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
   bool isSaving = false;
   late String currentVehicleId;
   String? currentMaintenanceId;
+  final NotiService _notiService = NotiService();
 
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
     currentVehicleId = widget.vehicleData['vehicle_id'] ?? '';
     _loadExistingServiceData();
+    _notiService.init(); // Initialize notification service early
   }
 
   Future<void> _selectDate(BuildContext context, String key) async {
@@ -58,8 +64,17 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         );
       },
     );
+    
     if (picked != null && picked != _dates[key]) {
-      setState(() => _dates[key] = picked);
+      // Set time to 7:00 AM IST
+      final istDate = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        7, // 7 AM
+        0,
+      );
+      setState(() => _dates[key] = istDate);
     }
   }
 
@@ -90,21 +105,22 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       if (serviceQuery.docs.isNotEmpty) {
         final data = serviceQuery.docs.first.data();
         setState(() {
-          _dates['insurance_expiry_date'] =
-              data['insurance_expiry_date']?.toDate();
-          _dates['next_oil_change'] = data['next_oil_change']?.toDate();
-          _dates['next_tire_replace'] = data['next_tire_replace']?.toDate();
-          _dates['next_service'] = data['next_service']?.toDate();
+          _dates['insurance_expiry_date'] = _parseFirestoreDate(data['insurance_expiry_date']);
+          _dates['next_oil_change'] = _parseFirestoreDate(data['next_oil_change']);
+          _dates['next_tire_replace'] = _parseFirestoreDate(data['next_tire_replace']);
+          _dates['next_service'] = _parseFirestoreDate(data['next_service']);
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading service data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Error loading service data: $e');
     }
+  }
+
+  DateTime? _parseFirestoreDate(dynamic date) {
+    if (date == null) return null;
+    if (date is Timestamp) return date.toDate();
+    if (date is DateTime) return date;
+    return null;
   }
 
   Future<void> _saveServiceSchedule() async {
@@ -116,6 +132,25 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     setState(() => isSaving = true);
 
     try {
+      final serviceData = {
+        'insurance_expiry_date': _dates['insurance_expiry_date'] != null 
+            ? Timestamp.fromDate(_dates['insurance_expiry_date']!)
+            : null,
+        'next_oil_change': _dates['next_oil_change'] != null
+            ? Timestamp.fromDate(_dates['next_oil_change']!)
+            : null,
+        'next_tire_replace': _dates['next_tire_replace'] != null
+            ? Timestamp.fromDate(_dates['next_tire_replace']!)
+            : null,
+        'next_service': _dates['next_service'] != null
+            ? Timestamp.fromDate(_dates['next_service']!)
+            : null,
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
       final serviceQuery = await FirebaseFirestore.instance
           .collection('service')
           .where('user_id', isEqualTo: user.uid)
@@ -125,101 +160,79 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           .get();
 
       if (serviceQuery.docs.isNotEmpty) {
-        await serviceQuery.docs.first.reference.update({
-          'insurance_expiry_date': _dates['insurance_expiry_date'],
-          'next_oil_change': _dates['next_oil_change'],
-          'next_tire_replace': _dates['next_tire_replace'],
-          'next_service': _dates['next_service'],
-          'updated_at': FieldValue.serverTimestamp(),
-        });
+        await serviceQuery.docs.first.reference.update(serviceData);
       } else {
         await FirebaseFirestore.instance.collection('service').add({
-          'user_id': user.uid,
-          'vehicle_id': currentVehicleId,
-          'maintenance_id': currentMaintenanceId,
-          'insurance_expiry_date': _dates['insurance_expiry_date'],
-          'next_oil_change': _dates['next_oil_change'],
-          'next_tire_replace': _dates['next_tire_replace'],
-          'next_service': _dates['next_service'],
+          ...serviceData,
           'created_at': FieldValue.serverTimestamp(),
         });
       }
 
       await _setReminders();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Service schedule saved successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _showSuccess('Service schedule saved successfully');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Error saving data: $e');
     } finally {
       setState(() => isSaving = false);
     }
   }
 
   Future<void> _setReminders() async {
-    final notiService = NotiService();
-    await notiService.init();
+    try {
+      final now = DateTime.now();
+      final vehicleModel = widget.vehicleData['model'] ?? 'your vehicle';
+      final vehicleNumber = widget.vehicleData['vehicle_number'] ?? '';
 
-    final now = DateTime.now();
-    final vehicleModel = widget.vehicleData['model'] ?? 'your vehicle';
-    final vehicleNumber = widget.vehicleData['vehicle_number'] ?? '';
+      await _notiService.cancelAllForVehicle(currentVehicleId);
 
-    Map<String, Map<String, String>> reminders = {
-      'insurance_expiry_date': {
-        'title': '🛡️ Insurance Expiry Reminder',
-        'body': 'Insurance for $vehicleModel ($vehicleNumber) expires soon!'
-      },
-      'next_oil_change': {
-        'title': '🛢️ Oil Change Reminder',
-        'body': 'Time to change oil for $vehicleModel ($vehicleNumber)'
-      },
-      'next_tire_replace': {
-        'title': '𖣐 Tire Replacement Reminder',
-        'body': 'Time to replace tires on $vehicleModel ($vehicleNumber)'
-      },
-      'next_service': {
-        'title': '🛠️ Service Reminder',
-        'body': 'Scheduled service for $vehicleModel ($vehicleNumber)'
-      },
-    };
+      final reminders = {
+        'insurance_expiry_date': {
+          'title': '🛡️ Insurance Expiry Reminder',
+          'body': 'Insurance for $vehicleModel ($vehicleNumber) expires soon!'
+        },
+        'next_oil_change': {
+          'title': '🛢️ Oil Change Reminder',
+          'body': 'Time to change oil for $vehicleModel ($vehicleNumber)'
+        },
+        'next_tire_replace': {
+          'title': '𖣐 Tire Replacement Reminder',
+          'body': 'Time to replace tires on $vehicleModel ($vehicleNumber)'
+        },
+        'next_service': {
+          'title': '🛠️ Service Reminder',
+          'body': 'Scheduled service for $vehicleModel ($vehicleNumber)'
+        },
+      };
 
-    for (var key in _dates.keys) {
-      final date = _dates[key];
-      if (date != null && date.isAfter(now)) {
-        final reminderDate = date.subtract(const Duration(days: 14));
-        if (reminderDate.isAfter(now)) {
-          await notiService.scheduleVehicleNotification(
+      for (final key in _dates.keys) {
+        final date = _dates[key];
+        if (date != null && date.isAfter(now)) {
+          await _notiService.schedule(
             vehicleId: currentVehicleId,
             serviceType: key,
-            scheduledDate: reminderDate,
+            scheduledDate: date,
             title: reminders[key]!['title']!,
             body: reminders[key]!['body']!,
           );
         }
       }
+    } catch (e) {
+      _showError('Error setting reminders: $e');
     }
   }
 
   Widget _buildDateTile(String label, String key) {
+    final isOverdue = _dates[key]?.isBefore(DateTime.now()) ?? false;
+    
     return Container(
       decoration: BoxDecoration(
-        color: kDarkCard,
+        color: isOverdue ? Colors.red[900]?.withOpacity(0.3) : kDarkCard,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
       ),
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         title: Text(
           label,
           style: TextStyle(
@@ -228,20 +241,48 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            _dates[key] != null
-                ? DateFormat('MMM d, y').format(_dates[key]!)
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _dates[key] != null 
+                ? DateFormat('MMM d, y h:mm a').format(_dates[key]!)
                 : 'Not scheduled',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
+              style: TextStyle(
+                color: isOverdue ? Colors.red[300] : Colors.white,
+                fontSize: 16,
+              ),
             ),
-          ),
+            if (isOverdue && _dates[key] != null)
+              Text(
+                'OVERDUE!',
+                style: TextStyle(
+                  color: Colors.red[300],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
         ),
         trailing: Icon(Icons.calendar_today, color: kYellow),
         onTap: () => _selectDate(context, key),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
       ),
     );
   }
@@ -263,10 +304,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.save,
-              color: kYellow,
-            ),
+            icon: Icon(Icons.save, color: kYellow),
             onPressed: isSaving ? null : _saveServiceSchedule,
           ),
         ],
