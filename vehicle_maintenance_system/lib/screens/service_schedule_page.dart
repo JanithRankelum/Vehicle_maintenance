@@ -35,6 +35,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
   int? _recommendedMileage;
   String? _tireBrand;
   int? _tireRecommendedMileage;
+  String? _serviceType;
+  String? _otherMaintenance;
   bool isSaving = false;
   late String currentVehicleId;
   String? currentMaintenanceId;
@@ -116,6 +118,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           _recommendedMileage = data['recommended_mileage']?.toInt();
           _tireBrand = data['tire_brand'];
           _tireRecommendedMileage = data['tire_recommended_mileage']?.toInt();
+          _serviceType = data['service_type'];
+          _otherMaintenance = data['other_maintenance'];
         });
       }
     } catch (e) {
@@ -183,6 +187,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           'recommended_mileage': _recommendedMileage ?? 0,
           'tire_brand': _tireBrand ?? '',
           'tire_recommended_mileage': _tireRecommendedMileage ?? 0,
+          'service_type': _serviceType ?? '',
+          'other_maintenance': _otherMaintenance ?? '',
         });
         _showSuccess('$label created successfully!');
       }
@@ -596,6 +602,132 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
+  Future<void> _updateServiceDetails() async {
+    final serviceTypeController = TextEditingController(text: _serviceType);
+    final otherMaintenanceController = TextEditingController(text: _otherMaintenance);
+    DateTime? selectedDate = _dates['next_service'];
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: kDarkCard,
+              title: Text('Update Service Details', 
+                  style: TextStyle(color: kYellow)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: serviceTypeController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Service Type',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: otherMaintenanceController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Other Maintenance',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    ListTile(
+                      title: Text(
+                        selectedDate != null
+                            ? 'Next Service: ${DateFormat('MMM d, y').format(selectedDate!)}'
+                            : 'Select Next Service Date',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      trailing: Icon(Icons.calendar_today, color: kYellow),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.dark(
+                                  primary: kYellow,
+                                  onPrimary: Colors.black,
+                                  surface: kDarkCard,
+                                  onSurface: Colors.white,
+                                ),
+                                dialogTheme: const DialogTheme(backgroundColor: kBackground),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = DateTime(picked.year, picked.month, picked.day, 7, 0);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: kYellow)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (serviceTypeController.text.isEmpty || 
+                        selectedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Please fill all required fields'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      _serviceType = serviceTypeController.text;
+                      _otherMaintenance = otherMaintenanceController.text;
+                      _dates['next_service'] = selectedDate;
+                    });
+
+                    await _saveServiceDetails(
+                      serviceTypeController.text,
+                      otherMaintenanceController.text,
+                      selectedDate!,
+                    );
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kYellow,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _saveInsuranceDetails(
     String company, 
     String policyNumber, 
@@ -793,6 +925,71 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     }
   }
 
+  Future<void> _saveServiceDetails(
+    String serviceType,
+    String otherMaintenance,
+    DateTime nextServiceDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'next_service': Timestamp.fromDate(nextServiceDate),
+        'service_type': serviceType,
+        'other_maintenance': otherMaintenance,
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      debugPrint('Saving service data: $serviceData');
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        debugPrint('Service details updated successfully');
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        debugPrint('New service record created successfully');
+      }
+
+      _showSuccess('Service details saved successfully!');
+      
+      await _notiService.cancelSingleNotification(currentVehicleId, 'next_service');
+      if (nextServiceDate.isAfter(DateTime.now())) {
+        await _notiService.schedule(
+          vehicleId: currentVehicleId,
+          serviceType: 'next_service',
+          scheduledDate: nextServiceDate,
+          title: 'Service Reminder',
+          body: 'Time for ${serviceType.isEmpty ? 'scheduled' : serviceType} service for ${widget.vehicleData['model']}',
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving service: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save service details. Please try again.');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
   Future<void> _setReminders() async {
     try {
       final now = DateTime.now();
@@ -903,6 +1100,16 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
                     'Mileage: $_tireRecommendedMileage km',
                     style: TextStyle(color: Colors.grey),
                   ),
+                if (key == 'next_service' && _serviceType != null)
+                  Text(
+                    'Type: $_serviceType',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                if (key == 'next_service' && _otherMaintenance != null)
+                  Text(
+                    'Other: $_otherMaintenance',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 if (isOverdue && _dates[key] != null)
                   Text(
                     'OVERDUE!',
@@ -922,6 +1129,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
                   _updateOilChangeDetails();
                 } else if (key == 'next_tire_replace') {
                   _updateTireReplacementDetails();
+                } else if (key == 'next_service') {
+                  _updateServiceDetails();
                 } else {
                   _selectDate(context, key);
                 }
@@ -941,6 +1150,8 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
                       _updateOilChangeDetails();
                     } else if (key == 'next_tire_replace') {
                       _updateTireReplacementDetails();
+                    } else if (key == 'next_service') {
+                      _updateServiceDetails();
                     } else if (_dates[key] != null) {
                       _saveDateToFirestore(key, label);
                     }
