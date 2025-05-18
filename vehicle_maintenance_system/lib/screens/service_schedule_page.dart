@@ -42,6 +42,12 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
   String? currentMaintenanceId;
   final NotiService _notiService = NotiService();
 
+  // Individual timestamps for each service type
+  DateTime? _lastUpdatedInsurance;
+  DateTime? _lastUpdatedOil;
+  DateTime? _lastUpdatedTire;
+  DateTime? _lastUpdatedService;
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +117,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           _dates['next_oil_change'] = _parseFirestoreDate(data['next_oil_change']);
           _dates['next_tire_replace'] = _parseFirestoreDate(data['next_tire_replace']);
           _dates['next_service'] = _parseFirestoreDate(data['next_service']);
+          
           _insuranceCompany = data['insurance_company'];
           _insurancePolicyNumber = data['insurance_policy_number'];
           _oilBrand = data['oil_brand'];
@@ -120,6 +127,12 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           _tireRecommendedMileage = data['tire_recommended_mileage']?.toInt();
           _serviceType = data['service_type'];
           _otherMaintenance = data['other_maintenance'];
+          
+          // Load individual timestamps
+          _lastUpdatedInsurance = _parseFirestoreDate(data['last_updated_insurance']);
+          _lastUpdatedOil = _parseFirestoreDate(data['last_updated_oil']);
+          _lastUpdatedTire = _parseFirestoreDate(data['last_updated_tire']);
+          _lastUpdatedService = _parseFirestoreDate(data['last_updated_service']);
         });
       }
     } catch (e) {
@@ -326,6 +339,70 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
+  Future<void> _saveInsuranceDetails(
+    String company, 
+    String policyNumber, 
+    DateTime expiryDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'insurance_expiry_date': Timestamp.fromDate(expiryDate),
+        'insurance_company': company,
+        'insurance_policy_number': policyNumber,
+        'last_updated_insurance': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        setState(() => _lastUpdatedInsurance = DateTime.now());
+        _showSuccess('Insurance details saved successfully!');
+        
+        await _notiService.cancelSingleNotification(currentVehicleId, 'insurance_expiry_date');
+        if (expiryDate.isAfter(DateTime.now())) {
+          await _notiService.schedule(
+            vehicleId: currentVehicleId,
+            serviceType: 'insurance_expiry_date',
+            scheduledDate: expiryDate,
+            title: 'Insurance Expiry Reminder',
+            body: 'Insurance for ${widget.vehicleData['model']} expires soon!',
+          );
+        }
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        setState(() => _lastUpdatedInsurance = DateTime.now());
+        _showSuccess('Insurance details created successfully!');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving insurance: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save insurance details. Please try again.');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
   Future<void> _updateOilChangeDetails() async {
     final oilBrandController = TextEditingController(text: _oilBrand);
     final viscosityController = TextEditingController(text: _oilViscosity);
@@ -472,6 +549,72 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
+  Future<void> _saveOilChangeDetails(
+    String oilBrand,
+    String viscosity,
+    int recommendedMileage,
+    DateTime nextChangeDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'next_oil_change': Timestamp.fromDate(nextChangeDate),
+        'oil_brand': oilBrand,
+        'oil_viscosity': viscosity,
+        'recommended_mileage': recommendedMileage,
+        'last_updated_oil': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        setState(() => _lastUpdatedOil = DateTime.now());
+        _showSuccess('Oil change details saved successfully!');
+        
+        await _notiService.cancelSingleNotification(currentVehicleId, 'next_oil_change');
+        if (nextChangeDate.isAfter(DateTime.now())) {
+          await _notiService.schedule(
+            vehicleId: currentVehicleId,
+            serviceType: 'next_oil_change',
+            scheduledDate: nextChangeDate,
+            title: 'Oil Change Reminder',
+            body: 'Time to change oil for ${widget.vehicleData['model']}',
+          );
+        }
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        setState(() => _lastUpdatedOil = DateTime.now());
+        _showSuccess('Oil change details created successfully!');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving oil change: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save oil change details. Please try again.');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
   Future<void> _updateTireReplacementDetails() async {
     final tireBrandController = TextEditingController(text: _tireBrand);
     final mileageController = TextEditingController(
@@ -602,6 +745,70 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
+  Future<void> _saveTireReplacementDetails(
+    String tireBrand,
+    int recommendedMileage,
+    DateTime nextReplacementDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'next_tire_replace': Timestamp.fromDate(nextReplacementDate),
+        'tire_brand': tireBrand,
+        'tire_recommended_mileage': recommendedMileage,
+        'last_updated_tire': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        setState(() => _lastUpdatedTire = DateTime.now());
+        _showSuccess('Tire replacement details saved successfully!');
+        
+        await _notiService.cancelSingleNotification(currentVehicleId, 'next_tire_replace');
+        if (nextReplacementDate.isAfter(DateTime.now())) {
+          await _notiService.schedule(
+            vehicleId: currentVehicleId,
+            serviceType: 'next_tire_replace',
+            scheduledDate: nextReplacementDate,
+            title: 'Tire Replacement Reminder',
+            body: 'Time to replace tires for ${widget.vehicleData['model']}',
+          );
+        }
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        setState(() => _lastUpdatedTire = DateTime.now());
+        _showSuccess('Tire replacement details created successfully!');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving tire replacement: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save tire replacement details. Please try again.');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
   Future<void> _updateServiceDetails() async {
     final serviceTypeController = TextEditingController(text: _serviceType);
     final otherMaintenanceController = TextEditingController(text: _otherMaintenance);
@@ -728,203 +935,6 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     );
   }
 
-  Future<void> _saveInsuranceDetails(
-    String company, 
-    String policyNumber, 
-    DateTime expiryDate,
-  ) async {
-    setState(() => isSaving = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null || currentMaintenanceId == null) {
-        _showError('Authentication or maintenance record issue');
-        return;
-      }
-
-      final serviceData = {
-        'insurance_expiry_date': Timestamp.fromDate(expiryDate),
-        'insurance_company': company,
-        'insurance_policy_number': policyNumber,
-        'updated_at': FieldValue.serverTimestamp(),
-        'user_id': user.uid,
-        'vehicle_id': currentVehicleId,
-        'maintenance_id': currentMaintenanceId,
-      };
-
-      debugPrint('Attempting to save insurance data: $serviceData');
-
-      final query = await FirebaseFirestore.instance
-          .collection('service')
-          .where('user_id', isEqualTo: user.uid)
-          .where('vehicle_id', isEqualTo: currentVehicleId)
-          .where('maintenance_id', isEqualTo: currentMaintenanceId)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        await query.docs.first.reference.update(serviceData);
-        debugPrint('Successfully updated insurance details');
-      } else {
-        await FirebaseFirestore.instance.collection('service').add({
-          ...serviceData,
-          'created_at': FieldValue.serverTimestamp(),
-        });
-        debugPrint('Successfully created new insurance record');
-      }
-
-      _showSuccess('Insurance details saved successfully!');
-      
-      await _notiService.cancelSingleNotification(currentVehicleId, 'insurance_expiry_date');
-      if (expiryDate.isAfter(DateTime.now())) {
-        await _notiService.schedule(
-          vehicleId: currentVehicleId,
-          serviceType: 'insurance_expiry_date',
-          scheduledDate: expiryDate,
-          title: 'Insurance Expiry Reminder',
-          body: 'Insurance for ${widget.vehicleData['model']} expires soon!',
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Error saving insurance: $e');
-      debugPrint('Stack trace: $stackTrace');
-      _showError('Failed to save insurance details. Please try again.');
-    } finally {
-      setState(() => isSaving = false);
-    }
-  }
-
-  Future<void> _saveOilChangeDetails(
-    String oilBrand,
-    String viscosity,
-    int recommendedMileage,
-    DateTime nextChangeDate,
-  ) async {
-    setState(() => isSaving = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null || currentMaintenanceId == null) {
-        _showError('Authentication or maintenance record issue');
-        return;
-      }
-
-      final serviceData = {
-        'next_oil_change': Timestamp.fromDate(nextChangeDate),
-        'oil_brand': oilBrand,
-        'oil_viscosity': viscosity,
-        'recommended_mileage': recommendedMileage,
-        'updated_at': FieldValue.serverTimestamp(),
-        'user_id': user.uid,
-        'vehicle_id': currentVehicleId,
-        'maintenance_id': currentMaintenanceId,
-      };
-
-      debugPrint('Saving oil change data: $serviceData');
-
-      final query = await FirebaseFirestore.instance
-          .collection('service')
-          .where('user_id', isEqualTo: user.uid)
-          .where('vehicle_id', isEqualTo: currentVehicleId)
-          .where('maintenance_id', isEqualTo: currentMaintenanceId)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        await query.docs.first.reference.update(serviceData);
-        debugPrint('Oil change details updated successfully');
-      } else {
-        await FirebaseFirestore.instance.collection('service').add({
-          ...serviceData,
-          'created_at': FieldValue.serverTimestamp(),
-        });
-        debugPrint('New oil change record created successfully');
-      }
-
-      _showSuccess('Oil change details saved successfully!');
-      
-      await _notiService.cancelSingleNotification(currentVehicleId, 'next_oil_change');
-      if (nextChangeDate.isAfter(DateTime.now())) {
-        await _notiService.schedule(
-          vehicleId: currentVehicleId,
-          serviceType: 'next_oil_change',
-          scheduledDate: nextChangeDate,
-          title: 'Oil Change Reminder',
-          body: 'Time to change oil for ${widget.vehicleData['model']}',
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Error saving oil change: $e');
-      debugPrint('Stack trace: $stackTrace');
-      _showError('Failed to save oil change details. Please try again.');
-    } finally {
-      setState(() => isSaving = false);
-    }
-  }
-
-  Future<void> _saveTireReplacementDetails(
-    String tireBrand,
-    int recommendedMileage,
-    DateTime nextReplacementDate,
-  ) async {
-    setState(() => isSaving = true);
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null || currentMaintenanceId == null) {
-        _showError('Authentication or maintenance record issue');
-        return;
-      }
-
-      final serviceData = {
-        'next_tire_replace': Timestamp.fromDate(nextReplacementDate),
-        'tire_brand': tireBrand,
-        'tire_recommended_mileage': recommendedMileage,
-        'updated_at': FieldValue.serverTimestamp(),
-        'user_id': user.uid,
-        'vehicle_id': currentVehicleId,
-        'maintenance_id': currentMaintenanceId,
-      };
-
-      debugPrint('Saving tire replacement data: $serviceData');
-
-      final query = await FirebaseFirestore.instance
-          .collection('service')
-          .where('user_id', isEqualTo: user.uid)
-          .where('vehicle_id', isEqualTo: currentVehicleId)
-          .where('maintenance_id', isEqualTo: currentMaintenanceId)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        await query.docs.first.reference.update(serviceData);
-        debugPrint('Tire replacement details updated successfully');
-      } else {
-        await FirebaseFirestore.instance.collection('service').add({
-          ...serviceData,
-          'created_at': FieldValue.serverTimestamp(),
-        });
-        debugPrint('New tire replacement record created successfully');
-      }
-
-      _showSuccess('Tire replacement details saved successfully!');
-      
-      await _notiService.cancelSingleNotification(currentVehicleId, 'next_tire_replace');
-      if (nextReplacementDate.isAfter(DateTime.now())) {
-        await _notiService.schedule(
-          vehicleId: currentVehicleId,
-          serviceType: 'next_tire_replace',
-          scheduledDate: nextReplacementDate,
-          title: 'Tire Replacement Reminder',
-          body: 'Time to replace tires for ${widget.vehicleData['model']}',
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Error saving tire replacement: $e');
-      debugPrint('Stack trace: $stackTrace');
-      _showError('Failed to save tire replacement details. Please try again.');
-    } finally {
-      setState(() => isSaving = false);
-    }
-  }
-
   Future<void> _saveServiceDetails(
     String serviceType,
     String otherMaintenance,
@@ -942,13 +952,12 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'next_service': Timestamp.fromDate(nextServiceDate),
         'service_type': serviceType,
         'other_maintenance': otherMaintenance,
+        'last_updated_service': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
         'maintenance_id': currentMaintenanceId,
       };
-
-      debugPrint('Saving service data: $serviceData');
 
       final query = await FirebaseFirestore.instance
           .collection('service')
@@ -960,26 +969,26 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
 
       if (query.docs.isNotEmpty) {
         await query.docs.first.reference.update(serviceData);
-        debugPrint('Service details updated successfully');
+        setState(() => _lastUpdatedService = DateTime.now());
+        _showSuccess('Service details saved successfully!');
+        
+        await _notiService.cancelSingleNotification(currentVehicleId, 'next_service');
+        if (nextServiceDate.isAfter(DateTime.now())) {
+          await _notiService.schedule(
+            vehicleId: currentVehicleId,
+            serviceType: 'next_service',
+            scheduledDate: nextServiceDate,
+            title: 'Service Reminder',
+            body: 'Time for ${serviceType.isEmpty ? 'scheduled' : serviceType} service for ${widget.vehicleData['model']}',
+          );
+        }
       } else {
         await FirebaseFirestore.instance.collection('service').add({
           ...serviceData,
           'created_at': FieldValue.serverTimestamp(),
         });
-        debugPrint('New service record created successfully');
-      }
-
-      _showSuccess('Service details saved successfully!');
-      
-      await _notiService.cancelSingleNotification(currentVehicleId, 'next_service');
-      if (nextServiceDate.isAfter(DateTime.now())) {
-        await _notiService.schedule(
-          vehicleId: currentVehicleId,
-          serviceType: 'next_service',
-          scheduledDate: nextServiceDate,
-          title: 'Service Reminder',
-          body: 'Time for ${serviceType.isEmpty ? 'scheduled' : serviceType} service for ${widget.vehicleData['model']}',
-        );
+        setState(() => _lastUpdatedService = DateTime.now());
+        _showSuccess('Service details created successfully!');
       }
     } catch (e, stackTrace) {
       debugPrint('Error saving service: $e');
@@ -1038,6 +1047,28 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
 
   Widget _buildDateTile(String label, String key) {
     final isOverdue = _dates[key]?.isBefore(DateTime.now()) ?? false;
+    DateTime? lastUpdated;
+    String lastUpdatedText = 'Not updated yet';
+
+    // Determine which timestamp to show based on the key
+    switch (key) {
+      case 'insurance_expiry_date':
+        lastUpdated = _lastUpdatedInsurance;
+        break;
+      case 'next_oil_change':
+        lastUpdated = _lastUpdatedOil;
+        break;
+      case 'next_tire_replace':
+        lastUpdated = _lastUpdatedTire;
+        break;
+      case 'next_service':
+        lastUpdated = _lastUpdatedService;
+        break;
+    }
+
+    if (lastUpdated != null) {
+      lastUpdatedText = 'Last updated: ${DateFormat('MMM d, y h:mm a').format(lastUpdated)}';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1063,11 +1094,19 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
               children: [
                 Text(
                   _dates[key] != null
-                      ? DateFormat('MMM d, y h:mm a').format(_dates[key]!)
+                      ? 'Scheduled: ${DateFormat('MMM d, y h:mm a').format(_dates[key]!)}'
                       : 'Not scheduled',
                   style: TextStyle(
                     color: isOverdue ? Colors.red[300] : Colors.white,
                     fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  lastUpdatedText,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
                   ),
                 ),
                 if (key == 'insurance_expiry_date' && _insuranceCompany != null)
