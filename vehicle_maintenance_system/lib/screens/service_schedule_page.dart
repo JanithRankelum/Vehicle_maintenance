@@ -28,6 +28,11 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     'next_service': null,
   };
 
+  String? _insuranceCompany;
+  String? _insurancePolicyNumber;
+  String? _oilBrand;
+  String? _oilViscosity;
+  int? _recommendedMileage;
   bool isSaving = false;
   late String currentVehicleId;
   String? currentMaintenanceId;
@@ -40,14 +45,14 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
     currentVehicleId = widget.vehicleData['vehicle_id'] ?? '';
     _loadExistingServiceData();
-    _notiService.init(); // Initialize notification service early
+    _notiService.init();
   }
 
   Future<void> _selectDate(BuildContext context, String key) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _dates[key] ?? DateTime.now(),
-      firstDate: DateTime.now(),
+      firstDate: DateTime(2000),
       lastDate: DateTime(2101),
       builder: (context, child) {
         return Theme(
@@ -58,22 +63,15 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
               surface: kDarkCard,
               onSurface: Colors.white,
             ),
-            dialogTheme: DialogThemeData(backgroundColor: kBackground),
+            dialogTheme: const DialogTheme(backgroundColor: kBackground),
           ),
           child: child!,
         );
       },
     );
-    
+
     if (picked != null && picked != _dates[key]) {
-      // Set time to 7:00 AM IST
-      final istDate = DateTime(
-        picked.year,
-        picked.month,
-        picked.day,
-        7, // 7 AM
-        0,
-      );
+      final istDate = DateTime(picked.year, picked.month, picked.day, 7, 0);
       setState(() => _dates[key] = istDate);
     }
   }
@@ -109,10 +107,16 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           _dates['next_oil_change'] = _parseFirestoreDate(data['next_oil_change']);
           _dates['next_tire_replace'] = _parseFirestoreDate(data['next_tire_replace']);
           _dates['next_service'] = _parseFirestoreDate(data['next_service']);
+          _insuranceCompany = data['insurance_company'];
+          _insurancePolicyNumber = data['insurance_policy_number'];
+          _oilBrand = data['oil_brand'];
+          _oilViscosity = data['oil_viscosity'];
+          _recommendedMileage = data['recommended_mileage']?.toInt();
         });
       }
     } catch (e) {
-      _showError('Error loading service data: $e');
+      debugPrint('Error loading service data: $e');
+      _showError('Error loading service data');
     }
   }
 
@@ -123,35 +127,26 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
     return null;
   }
 
-  Future<void> _saveServiceSchedule() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  Future<void> _saveDateToFirestore(String key, String label) async {
+    if (_dates[key] == null) {
+      _showError('Please select a date first');
+      return;
+    }
 
     setState(() => isSaving = true);
-
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) return;
+
       final serviceData = {
-        'insurance_expiry_date': _dates['insurance_expiry_date'] != null 
-            ? Timestamp.fromDate(_dates['insurance_expiry_date']!)
-            : null,
-        'next_oil_change': _dates['next_oil_change'] != null
-            ? Timestamp.fromDate(_dates['next_oil_change']!)
-            : null,
-        'next_tire_replace': _dates['next_tire_replace'] != null
-            ? Timestamp.fromDate(_dates['next_tire_replace']!)
-            : null,
-        'next_service': _dates['next_service'] != null
-            ? Timestamp.fromDate(_dates['next_service']!)
-            : null,
+        key: Timestamp.fromDate(_dates[key]!),
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
         'maintenance_id': currentMaintenanceId,
       };
 
-      final serviceQuery = await FirebaseFirestore.instance
+      final query = await FirebaseFirestore.instance
           .collection('service')
           .where('user_id', isEqualTo: user.uid)
           .where('vehicle_id', isEqualTo: currentVehicleId)
@@ -159,19 +154,439 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           .limit(1)
           .get();
 
-      if (serviceQuery.docs.isNotEmpty) {
-        await serviceQuery.docs.first.reference.update(serviceData);
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        _showSuccess('$label updated successfully!');
+        
+        await _notiService.cancelSingleNotification(currentVehicleId, key);
+        if (_dates[key]!.isAfter(DateTime.now())) {
+          await _notiService.schedule(
+            vehicleId: currentVehicleId,
+            serviceType: key,
+            scheduledDate: _dates[key]!,
+            title: '$label Reminder',
+            body: 'Time to perform $label for ${widget.vehicleData['model']}',
+          );
+        }
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+          'insurance_company': _insuranceCompany ?? '',
+          'insurance_policy_number': _insurancePolicyNumber ?? '',
+          'oil_brand': _oilBrand ?? '',
+          'oil_viscosity': _oilViscosity ?? '',
+          'recommended_mileage': _recommendedMileage ?? 0,
+        });
+        _showSuccess('$label created successfully!');
+      }
+    } catch (e) {
+      debugPrint('Error saving $label: $e');
+      _showError('Failed to save $label');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
+  Future<void> _updateInsuranceDetails() async {
+    final companyController = TextEditingController(text: _insuranceCompany);
+    final policyController = TextEditingController(text: _insurancePolicyNumber);
+    DateTime? selectedDate = _dates['insurance_expiry_date'];
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: kDarkCard,
+              title: Text('Update Insurance Details', style: TextStyle(color: kYellow)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: companyController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Insurance Company',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: policyController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Policy Number',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    ListTile(
+                      title: Text(
+                        selectedDate != null
+                            ? 'Expiry: ${DateFormat('MMM d, y').format(selectedDate!)}'
+                            : 'Select Expiry Date',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      trailing: Icon(Icons.calendar_today, color: kYellow),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.dark(
+                                  primary: kYellow,
+                                  onPrimary: Colors.black,
+                                  surface: kDarkCard,
+                                  onSurface: Colors.white,
+                                ),
+                                dialogTheme: const DialogTheme(backgroundColor: kBackground),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = DateTime(picked.year, picked.month, picked.day, 7, 0);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: kYellow)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (companyController.text.isEmpty || 
+                        policyController.text.isEmpty || 
+                        selectedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Please fill all fields'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      _insuranceCompany = companyController.text;
+                      _insurancePolicyNumber = policyController.text;
+                      _dates['insurance_expiry_date'] = selectedDate;
+                    });
+
+                    await _saveInsuranceDetails(
+                      companyController.text,
+                      policyController.text,
+                      selectedDate!,
+                    );
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kYellow,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updateOilChangeDetails() async {
+    final oilBrandController = TextEditingController(text: _oilBrand);
+    final viscosityController = TextEditingController(text: _oilViscosity);
+    final mileageController = TextEditingController(
+      text: _recommendedMileage?.toString() ?? ''
+    );
+    DateTime? selectedDate = _dates['next_oil_change'];
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: kDarkCard,
+              title: Text('Update Oil Change Details', 
+                  style: TextStyle(color: kYellow)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: oilBrandController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Oil Brand',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: viscosityController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Viscosity Grade (e.g., 5W-30)',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: mileageController,
+                      style: TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Recommended Mileage',
+                        labelStyle: TextStyle(color: kYellow),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: kYellow),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    ListTile(
+                      title: Text(
+                        selectedDate != null
+                            ? 'Next Change: ${DateFormat('MMM d, y').format(selectedDate!)}'
+                            : 'Select Next Change Date',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      trailing: Icon(Icons.calendar_today, color: kYellow),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.dark(
+                                  primary: kYellow,
+                                  onPrimary: Colors.black,
+                                  surface: kDarkCard,
+                                  onSurface: Colors.white,
+                                ),
+                                dialogTheme: const DialogTheme(backgroundColor: kBackground),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = DateTime(picked.year, picked.month, picked.day, 7, 0);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: kYellow)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (oilBrandController.text.isEmpty || 
+                        viscosityController.text.isEmpty || 
+                        mileageController.text.isEmpty ||
+                        selectedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Please fill all fields'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() {
+                      _oilBrand = oilBrandController.text;
+                      _oilViscosity = viscosityController.text;
+                      _recommendedMileage = int.tryParse(mileageController.text) ?? 0;
+                      _dates['next_oil_change'] = selectedDate;
+                    });
+
+                    await _saveOilChangeDetails(
+                      oilBrandController.text,
+                      viscosityController.text,
+                      int.tryParse(mileageController.text) ?? 0,
+                      selectedDate!,
+                    );
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kYellow,
+                    foregroundColor: Colors.black,
+                  ),
+                  child: Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveInsuranceDetails(
+    String company, 
+    String policyNumber, 
+    DateTime expiryDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'insurance_expiry_date': Timestamp.fromDate(expiryDate),
+        'insurance_company': company,
+        'insurance_policy_number': policyNumber,
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      debugPrint('Attempting to save insurance data: $serviceData');
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        debugPrint('Successfully updated insurance details');
       } else {
         await FirebaseFirestore.instance.collection('service').add({
           ...serviceData,
           'created_at': FieldValue.serverTimestamp(),
         });
+        debugPrint('Successfully created new insurance record');
       }
 
-      await _setReminders();
-      _showSuccess('Service schedule saved successfully');
-    } catch (e) {
-      _showError('Error saving data: $e');
+      _showSuccess('Insurance details saved successfully!');
+      
+      await _notiService.cancelSingleNotification(currentVehicleId, 'insurance_expiry_date');
+      if (expiryDate.isAfter(DateTime.now())) {
+        await _notiService.schedule(
+          vehicleId: currentVehicleId,
+          serviceType: 'insurance_expiry_date',
+          scheduledDate: expiryDate,
+          title: 'Insurance Expiry Reminder',
+          body: 'Insurance for ${widget.vehicleData['model']} expires soon!',
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving insurance: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save insurance details. Please try again.');
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
+  Future<void> _saveOilChangeDetails(
+    String oilBrand,
+    String viscosity,
+    int recommendedMileage,
+    DateTime nextChangeDate,
+  ) async {
+    setState(() => isSaving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || currentMaintenanceId == null) {
+        _showError('Authentication or maintenance record issue');
+        return;
+      }
+
+      final serviceData = {
+        'next_oil_change': Timestamp.fromDate(nextChangeDate),
+        'oil_brand': oilBrand,
+        'oil_viscosity': viscosity,
+        'recommended_mileage': recommendedMileage,
+        'updated_at': FieldValue.serverTimestamp(),
+        'user_id': user.uid,
+        'vehicle_id': currentVehicleId,
+        'maintenance_id': currentMaintenanceId,
+      };
+
+      debugPrint('Saving oil change data: $serviceData');
+
+      final query = await FirebaseFirestore.instance
+          .collection('service')
+          .where('user_id', isEqualTo: user.uid)
+          .where('vehicle_id', isEqualTo: currentVehicleId)
+          .where('maintenance_id', isEqualTo: currentMaintenanceId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update(serviceData);
+        debugPrint('Oil change details updated successfully');
+      } else {
+        await FirebaseFirestore.instance.collection('service').add({
+          ...serviceData,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+        debugPrint('New oil change record created successfully');
+      }
+
+      _showSuccess('Oil change details saved successfully!');
+      
+      await _notiService.cancelSingleNotification(currentVehicleId, 'next_oil_change');
+      if (nextChangeDate.isAfter(DateTime.now())) {
+        await _notiService.schedule(
+          vehicleId: currentVehicleId,
+          serviceType: 'next_oil_change',
+          scheduledDate: nextChangeDate,
+          title: 'Oil Change Reminder',
+          body: 'Time to change oil for ${widget.vehicleData['model']}',
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error saving oil change: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _showError('Failed to save oil change details. Please try again.');
     } finally {
       setState(() => isSaving = false);
     }
@@ -187,11 +602,11 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
 
       final reminders = {
         'insurance_expiry_date': {
-          'title': '🛡️ Insurance Expiry Reminder',
+          'title': '🛡 Insurance Expiry Reminder',
           'body': 'Insurance for $vehicleModel ($vehicleNumber) expires soon!'
         },
         'next_oil_change': {
-          'title': '🛢️ Oil Change Reminder',
+          'title': '🛢 Oil Change Reminder',
           'body': 'Time to change oil for $vehicleModel ($vehicleNumber)'
         },
         'next_tire_replace': {
@@ -199,7 +614,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           'body': 'Time to replace tires on $vehicleModel ($vehicleNumber)'
         },
         'next_service': {
-          'title': '🛠️ Service Reminder',
+          'title': '🛠 Service Reminder',
           'body': 'Scheduled service for $vehicleModel ($vehicleNumber)'
         },
       };
@@ -216,14 +631,16 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
           );
         }
       }
+      _showSuccess('Reminders set successfully!');
     } catch (e) {
-      _showError('Error setting reminders: $e');
+      debugPrint('Error setting reminders: $e');
+      _showError('Failed to set reminders');
     }
   }
 
   Widget _buildDateTile(String label, String key) {
     final isOverdue = _dates[key]?.isBefore(DateTime.now()) ?? false;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: isOverdue ? Colors.red[900]?.withOpacity(0.3) : kDarkCard,
@@ -231,40 +648,105 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
       ),
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: kYellow,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _dates[key] != null 
-                ? DateFormat('MMM d, y h:mm a').format(_dates[key]!)
-                : 'Not scheduled',
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            title: Text(
+              label,
               style: TextStyle(
-                color: isOverdue ? Colors.red[300] : Colors.white,
-                fontSize: 16,
+                color: kYellow,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            if (isOverdue && _dates[key] != null)
-              Text(
-                'OVERDUE!',
-                style: TextStyle(
-                  color: Colors.red[300],
-                  fontWeight: FontWeight.bold,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dates[key] != null
+                      ? DateFormat('MMM d, y h:mm a').format(_dates[key]!)
+                      : 'Not scheduled',
+                  style: TextStyle(
+                    color: isOverdue ? Colors.red[300] : Colors.white,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-          ],
-        ),
-        trailing: Icon(Icons.calendar_today, color: kYellow),
-        onTap: () => _selectDate(context, key),
+                if (key == 'insurance_expiry_date' && _insuranceCompany != null)
+                  Text(
+                    'Company: $_insuranceCompany',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                if (key == 'insurance_expiry_date' && _insurancePolicyNumber != null)
+                  Text(
+                    'Policy: $_insurancePolicyNumber',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                if (key == 'next_oil_change' && _oilBrand != null)
+                  Text(
+                    'Brand: $_oilBrand (${_oilViscosity ?? ''})',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                if (key == 'next_oil_change' && _recommendedMileage != null)
+                  Text(
+                    'Mileage: $_recommendedMileage km',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                if (isOverdue && _dates[key] != null)
+                  Text(
+                    'OVERDUE!',
+                    style: TextStyle(
+                      color: Colors.red[300],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+            trailing: IconButton(
+              icon: Icon(Icons.edit, color: kYellow),
+              onPressed: () {
+                if (key == 'insurance_expiry_date') {
+                  _updateInsuranceDetails();
+                } else if (key == 'next_oil_change') {
+                  _updateOilChangeDetails();
+                } else {
+                  _selectDate(context, key);
+                }
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    if (key == 'insurance_expiry_date') {
+                      _updateInsuranceDetails();
+                    } else if (key == 'next_oil_change') {
+                      _updateOilChangeDetails();
+                    } else if (_dates[key] != null) {
+                      _saveDateToFirestore(key, label);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isOverdue ? Colors.red : kYellow,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    isOverdue ? 'UPDATE NOW' : 'UPDATE',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -294,7 +776,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       appBar: AppBar(
         title: Text(
           'Service Schedule - ${widget.vehicleData['model']}',
-          style: TextStyle(
+          style: const TextStyle(
             color: kYellow,
             fontWeight: FontWeight.bold,
           ),
@@ -304,47 +786,44 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.save, color: kYellow),
-            onPressed: isSaving ? null : _saveServiceSchedule,
+            icon: const Icon(Icons.save, color: kYellow),
+            onPressed: isSaving ? null : _setReminders,
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView(
-            children: [
-              _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
-              _buildDateTile("Next Oil Change", "next_oil_change"),
-              _buildDateTile("Next Tire Replacement", "next_tire_replace"),
-              _buildDateTile("Next Service", "next_service"),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.notifications_active),
-                label: const Text(
-                  "SET REMINDERS",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kYellow,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _setReminders,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
+          children: [
+            _buildDateTile("Insurance Expiry Date", "insurance_expiry_date"),
+            _buildDateTile("Next Oil Change", "next_oil_change"),
+            _buildDateTile("Next Tire Replacement", "next_tire_replace"),
+            _buildDateTile("Next Service", "next_service"),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.notifications_active),
+              label: const Text(
+                "SET ALL REMINDERS",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (isSaving)
-                const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: Center(
-                    child: CircularProgressIndicator(color: kYellow),
-                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kYellow,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-            ],
-          ),
+              ),
+              onPressed: _setReminders,
+            ),
+            if (isSaving)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Center(
+                  child: CircularProgressIndicator(color: kYellow),
+                ),
+              ),
+          ],
         ),
       ),
     );
