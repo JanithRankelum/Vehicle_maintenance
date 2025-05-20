@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:open_file/open_file.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 const kYellow = Color(0xFFFFC300);
 const kDarkCard = Color(0xFF1C1C1E);
@@ -9,6 +15,124 @@ class PredictionPage extends StatelessWidget {
   final String predictionResult;
 
   const PredictionPage({super.key, required this.predictionResult});
+
+  Future<void> _saveToFirestore(BuildContext context) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to save predictions')),
+        );
+        return;
+      }
+
+      final engineHealth = _extractValue("Engine Health", predictionResult);
+      final fuelConsumption = double.tryParse(
+              _extractValue("Fuel Consumption", predictionResult)) ??
+          0.0;
+      final mileage =
+          double.tryParse(_extractValue("Mileage", predictionResult)) ?? 0.0;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('predictions')
+          .add({
+        'engineHealth': engineHealth,
+        'fuelConsumption': fuelConsumption,
+        'mileage': mileage,
+        'timestamp': FieldValue.serverTimestamp(),
+        'fullResult': predictionResult,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prediction saved successfully!')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save prediction: $e')),
+      );
+    }
+  }
+
+  Future<void> _generatePdf(BuildContext context) async {
+    final engineHealth = _extractValue("Engine Health", predictionResult);
+    final fuelConsumption = double.tryParse(
+            _extractValue("Fuel Consumption", predictionResult)) ??
+        0.0;
+    final mileage =
+        double.tryParse(_extractValue("Mileage", predictionResult)) ?? 0.0;
+
+    final isEngineHealthy = engineHealth.trim() == "1";
+    final engineStatusText = isEngineHealthy ? "GOOD" : "NEEDS ATTENTION";
+
+    // Create a new PDF document
+    final PdfDocument document = PdfDocument();
+
+    // Add a new page
+    final PdfPage page = document.pages.add();
+
+    // Get page client size
+    final Size pageSize = page.getClientSize();
+
+    // Draw title
+    page.graphics.drawString(
+      'Vehicle Diagnosis Report',
+      PdfStandardFont(PdfFontFamily.helvetica, 24),
+      bounds: Rect.fromLTWH(0, 0, pageSize.width, 50),
+      format: PdfStringFormat(alignment: PdfTextAlignment.center),
+    );
+
+    // Draw engine status
+    page.graphics.drawString(
+      'Engine Status: $engineStatusText',
+      PdfStandardFont(PdfFontFamily.helvetica, 18),
+      bounds: Rect.fromLTWH(50, 60, pageSize.width - 100, 30),
+    );
+
+    // Draw fuel consumption
+    page.graphics.drawString(
+      'Fuel Consumption: ${fuelConsumption.toStringAsFixed(1)}%',
+      PdfStandardFont(PdfFontFamily.helvetica, 18),
+      bounds: Rect.fromLTWH(50, 100, pageSize.width - 100, 30),
+    );
+
+    // Draw mileage
+    page.graphics.drawString(
+      'Mileage: ${mileage.toStringAsFixed(1)} MPG',
+      PdfStandardFont(PdfFontFamily.helvetica, 18),
+      bounds: Rect.fromLTWH(50, 140, pageSize.width - 100, 30),
+    );
+
+    // Draw timestamp
+    page.graphics.drawString(
+      'Report generated on: ${DateTime.now().toString()}',
+      PdfStandardFont(PdfFontFamily.helvetica, 12),
+      bounds: Rect.fromLTWH(50, pageSize.height - 50, pageSize.width - 100, 30),
+      format: PdfStringFormat(alignment: PdfTextAlignment.right),
+    );
+
+    // Save the document
+    final List<int> bytes = await document.save();
+
+    // Dispose the document
+    document.dispose();
+
+    // Get external storage directory
+    final directory = await getApplicationDocumentsDirectory();
+    final path = directory.path;
+    final file = File('$path/vehicle_diagnosis_report.pdf');
+
+    // Write the file
+    await file.writeAsBytes(bytes, flush: true);
+
+    // Open the file
+    OpenFile.open('$path/vehicle_diagnosis_report.pdf');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('PDF report generated successfully!')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +389,44 @@ class PredictionPage extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Generate PDF Report'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kYellow,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => _generatePdf(context),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Save to History'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => _saveToFirestore(context),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
