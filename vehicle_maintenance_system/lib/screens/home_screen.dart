@@ -13,6 +13,7 @@ import 'send_obd_command_page.dart';
 import 'obd2_diagnosis_page.dart';
 import 'info_screen.dart';
 import 'report_screen.dart';
+import 'obd2_report.dart';
 
 const kYellow = Color(0xFFFFC300);
 const kDarkCard = Color(0xFF1C1C1E);
@@ -311,9 +312,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.document_scanner,
         'tab': 1,
         'onTap': () {
-          Navigator.push(
+         Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => BluetoothScanPage()),
+            MaterialPageRoute(builder: (context) => OBD2ReportPage()),
           );
         },
       },

@@ -103,70 +103,57 @@ class PredictionPage extends StatelessWidget {
     );
   }
 
-  Future<void> _saveToFirestore(
-      BuildContext context, String vehicleName, String vehicleNumber) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be logged in to save predictions')),
-        );
-        return;
-      }
+ Future<void> _saveToFirestore(
+    BuildContext context, String vehicleName, String vehicleNumber) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    print('Current user: $user');
 
-      final engineHealth = _extractValue("Engine Health", predictionResult);
-      final fuelConsumption = double.tryParse(
-              _extractValue("Fuel Consumption", predictionResult)) ??
-          0.0;
-      final mileage =
-          double.tryParse(_extractValue("Mileage", predictionResult)) ?? 0.0;
-
-      // Create a batch write to ensure all data is saved atomically
-      final batch = FirebaseFirestore.instance.batch();
-      
-      // Create a reference to a new document
-      final predictionRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('predictions')
-          .doc();
-
-      batch.set(predictionRef, {
-        'vehicleName': vehicleName,
-        'vehicleNumber': vehicleNumber,
-        'engineHealth': engineHealth,
-        'fuelConsumption': fuelConsumption,
-        'mileage': mileage,
-        'timestamp': FieldValue.serverTimestamp(),
-        'fullResult': predictionResult,
-        'userId': user.uid, // Additional field for easier querying
-      });
-
-      // Also update the user document with last prediction time
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid);
-      
-      batch.update(userRef, {
-        'lastPrediction': FieldValue.serverTimestamp(),
-        'predictionCount': FieldValue.increment(1),
-      });
-
-      await batch.commit();
-
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prediction saved successfully!')),
+        const SnackBar(content: Text('You must be logged in to save predictions')),
       );
-    } on FirebaseException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Firestore error: ${e.message}')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save prediction: $e')),
-      );
+      return;
     }
+
+    final engineHealth = _extractValue("Engine Health", predictionResult);
+    final fuelConsumption = double.tryParse(_extractValue("Fuel Consumption", predictionResult)) ?? 0.0;
+    final mileage = double.tryParse(_extractValue("Mileage", predictionResult)) ?? 0.0;
+
+    final predictionData = {
+      'vehicleName': vehicleName,
+      'vehicleNumber': vehicleNumber,
+      'engineHealth': engineHealth,
+      'fuelConsumption': fuelConsumption,
+      'mileage': mileage,
+      'timestamp': FieldValue.serverTimestamp(),
+      'fullResult': predictionResult,
+      'userId': user.uid,
+      'user_id': user.uid,
+    };
+
+    print('Saving to Firestore: $predictionData');
+
+    await FirebaseFirestore.instance
+        .collection('predictions') // 👈 FIXED PATH
+        .add(predictionData);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Prediction saved successfully!')),
+    );
+  } on FirebaseException catch (e) {
+    print('Firestore error: ${e.code} - ${e.message}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to save: ${e.message}')),
+    );
+  } catch (e) {
+    print('Unexpected error: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to save prediction')),
+    );
   }
+}
+
 
   Future<void> _generatePdf(BuildContext context) async {
     final engineHealth = _extractValue("Engine Health", predictionResult);
