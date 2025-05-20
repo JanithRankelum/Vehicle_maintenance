@@ -19,11 +19,9 @@ class MaintenanceInfoScreen extends StatefulWidget {
 class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
   Map<String, dynamic>? updatedData;
   Map<String, dynamic>? serviceData;
-  bool isEditing = false;
   bool isLoading = true;
   String? docId;
   String? serviceDocId;
-  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -110,6 +108,10 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
               'service_type': '',
               'other_maintenance': '',
               'updated_at': null,
+              'last_updated_insurance': null,
+              'last_updated_oil': null,
+              'last_updated_tire': null,
+              'last_updated_service': null,
             };
             isLoading = false;
           });
@@ -127,7 +129,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
   }
 
   String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return 'Not scheduled';
+    if (timestamp == null) return 'Not updated yet';
     return DateFormat('MMM d, y h:mm a').format(timestamp.toDate());
   }
 
@@ -135,7 +137,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
     required String title,
     String? value,
     required Timestamp? serviceDate,
-    required Timestamp? updatedAt,
+    required Timestamp? lastUpdated,
   }) {
     final isOverdue = serviceDate != null && serviceDate.toDate().isBefore(DateTime.now());
 
@@ -183,7 +185,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Last Updated: ${_formatTimestamp(updatedAt)}',
+                        'Last Updated: ${_formatTimestamp(lastUpdated)}',
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,
@@ -231,11 +233,6 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
       );
     }
 
-    Timestamp? maintenanceTimestamp = updatedData!['updated_at'];
-    String maintenanceFormattedTime = maintenanceTimestamp != null
-        ? DateFormat.yMMMd().add_jm().format(maintenanceTimestamp.toDate())
-        : 'Not available';
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -262,46 +259,41 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: kDarkCard,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                title: Text(
-                  "Last Updated",
-                  style: TextStyle(
-                    color: kYellow,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    maintenanceFormattedTime,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
+            _buildInfoTile(
+              "Insurance Company", 
+              updatedData?['insurance_company'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_insurance']),
             ),
-            const SizedBox(height: 8),
-            _buildInfoTile("Insurance Company", "insurance_company"),
-            _buildInfoTile("Insurance Policy Number", "insurance_policy_number"),
-            _buildInfoTile("Last Oil Change", "last_oil_change"),
-            _buildInfoTile("Last Service", "last_service"),
-            _buildInfoTile("Last Tire Replacement", "last_tire_replace"),
-            _buildInfoTile("Other Maintenance", "other_maintenance"),
+            _buildInfoTile(
+              "Insurance Policy Number", 
+              updatedData?['insurance_policy_number'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_insurance']),
+            ),
+            _buildInfoTile(
+              "Last Oil Change", 
+              updatedData?['last_oil_change'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_oil']),
+            ),
+            _buildInfoTile(
+              "Last Service", 
+              updatedData?['last_service'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_service']),
+            ),
+            _buildInfoTile(
+              "Last Tire Replacement", 
+              updatedData?['last_tire_replace'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_tire']),
+            ),
+            _buildInfoTile(
+              "Other Maintenance", 
+              updatedData?['other_maintenance'] ?? 'Not specified',
+              _formatTimestamp(serviceData?['last_updated_service']),
+            ),
 
             // Upcoming Services Section
             const SizedBox(height: 24),
             const Text(
-              'Upcoming Services',
+              'Maintenance & Upcoming Services',
               style: TextStyle(
                 color: kYellow,
                 fontSize: 18,
@@ -315,7 +307,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                   ? "${serviceData?['insurance_company']} (${serviceData?['insurance_policy_number']})"
                   : null,
               serviceDate: serviceData?['insurance_expiry_date'],
-              updatedAt: serviceData?['updated_at'],
+              lastUpdated: serviceData?['last_updated_insurance'],
             ),
             _buildServiceDetailCard(
               title: "Next Oil Change",
@@ -323,7 +315,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                   ? "${serviceData?['oil_brand']} (${serviceData?['oil_viscosity']}) - ${serviceData?['recommended_mileage']} km"
                   : null,
               serviceDate: serviceData?['next_oil_change'],
-              updatedAt: serviceData?['updated_at'],
+              lastUpdated: serviceData?['last_updated_oil'],
             ),
             _buildServiceDetailCard(
               title: "Next Tire Replacement",
@@ -331,7 +323,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                   ? "${serviceData?['tire_brand']} - ${serviceData?['tire_recommended_mileage']} km"
                   : null,
               serviceDate: serviceData?['next_tire_replace'],
-              updatedAt: serviceData?['updated_at'],
+              lastUpdated: serviceData?['last_updated_tire'],
             ),
             _buildServiceDetailCard(
               title: "Next Service",
@@ -339,7 +331,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                   ? "${serviceData?['service_type']}${serviceData?['other_maintenance'] != null && serviceData?['other_maintenance'].isNotEmpty ? '\n${serviceData?['other_maintenance']}' : ''}"
                   : null,
               serviceDate: serviceData?['next_service'],
-              updatedAt: serviceData?['updated_at'],
+              lastUpdated: serviceData?['last_updated_service'],
             ),
           ],
         ),
@@ -347,7 +339,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
     );
   }
 
-  Widget _buildInfoTile(String label, String key) {
+  Widget _buildInfoTile(String label, String value, String lastUpdated) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -366,15 +358,30 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              updatedData?[key]?.toString() ?? 'Not specified',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Last Updated: $lastUpdated',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

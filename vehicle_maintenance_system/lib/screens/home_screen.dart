@@ -12,6 +12,7 @@ import 'bluetooth_scan_page.dart';
 import 'send_obd_command_page.dart';
 import 'obd2_diagnosis_page.dart';
 import 'info_screen.dart';
+import 'report_screen.dart';
 
 const kYellow = Color(0xFFFFC300);
 const kDarkCard = Color(0xFF1C1C1E);
@@ -257,7 +258,10 @@ class _HomeScreenState extends State<HomeScreen> {
         'icon': Icons.document_scanner,
         'tab': 0,
         'onTap': () {
-          _showSnack("Reports feature coming soon!");
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ReportScreen(vehicleId: selectedVehicle?['id'])),
+          );
         },
       },
       // Maintenance tab cards
@@ -498,18 +502,37 @@ class _HomeScreenState extends State<HomeScreen> {
                       .toList(),
                 ),
 
-                // Special Reports button below the grid
-                if (_filteredCards.any((card) =>
-                    card['title'] == 'Reports' &&
-                    (searchQuery.isNotEmpty || card['tab'] == 0)))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: buildCard('Reports', Icons.document_scanner,
-                        () => _showSnack("Reports feature coming soon!")),
-                  ),
-              ],
-            ),
+      // Special Reports button below the grid
+      // Update the special Reports button to match the onTap behavior from the grid
+      if (_filteredCards.any((card) =>
+          card['title'] == 'Reports' &&
+          (searchQuery.isNotEmpty || card['tab'] == 0)))
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: buildCard(
+            'Reports',
+            Icons.document_scanner,
+            () {
+              // First check if we have a selected vehicle
+              if (selectedVehicle == null ||
+                  selectedVehicle?['id'] == null) {
+                _showSnack("Please select a vehicle first");
+                return;
+              }
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ReportScreen(vehicleId: selectedVehicle?['id']),
+                ),
+              );
+            },
           ),
+        ),
+    ],
+  ),
+),
           if (searchQuery.isEmpty) ...[
             const Divider(color: Colors.grey, height: 1, thickness: 0.5),
             const SizedBox(height: 16),

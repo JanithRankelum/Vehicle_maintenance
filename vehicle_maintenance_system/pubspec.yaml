@@ -55,6 +55,11 @@ dependencies:
   syncfusion_flutter_gauges: ^29.1.38
   carousel_slider: ^5.0.0
   flutter_local_notifications_platform_interface: ^9.0.0
+  printing: ^5.10.0
+  pdf: ^3.10.0
+  open_file: ^3.3.1
+  path_provider: ^2.1.5
+  cached_network_image: ^3.4.1
   
   
   
