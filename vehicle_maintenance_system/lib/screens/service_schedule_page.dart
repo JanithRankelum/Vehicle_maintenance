@@ -167,6 +167,17 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'maintenance_id': currentMaintenanceId,
       };
 
+      // Add the specific last_updated field based on the key
+      if (key == 'insurance_expiry_date') {
+        serviceData['last_updated_insurance'] = FieldValue.serverTimestamp();
+      } else if (key == 'next_oil_change') {
+        serviceData['last_updated_oil'] = FieldValue.serverTimestamp();
+      } else if (key == 'next_tire_replace') {
+        serviceData['last_updated_tire'] = FieldValue.serverTimestamp();
+      } else if (key == 'next_service') {
+        serviceData['last_updated_service'] = FieldValue.serverTimestamp();
+      }
+
       final query = await FirebaseFirestore.instance
           .collection('service')
           .where('user_id', isEqualTo: user.uid)
@@ -178,6 +189,17 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
       if (query.docs.isNotEmpty) {
         await query.docs.first.reference.update(serviceData);
         _showSuccess('$label updated successfully!');
+        
+        // Update the corresponding last_updated timestamp in state
+        if (key == 'insurance_expiry_date') {
+          setState(() => _lastUpdatedInsurance = DateTime.now());
+        } else if (key == 'next_oil_change') {
+          setState(() => _lastUpdatedOil = DateTime.now());
+        } else if (key == 'next_tire_replace') {
+          setState(() => _lastUpdatedTire = DateTime.now());
+        } else if (key == 'next_service') {
+          setState(() => _lastUpdatedService = DateTime.now());
+        }
         
         await _notiService.cancelSingleNotification(currentVehicleId, key);
         if (_dates[key]!.isAfter(DateTime.now())) {
@@ -356,7 +378,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'insurance_expiry_date': Timestamp.fromDate(expiryDate),
         'insurance_company': company,
         'insurance_policy_number': policyNumber,
-        'last_updated_insurance': FieldValue.serverTimestamp(),
+        'last_updated_insurance': FieldValue.serverTimestamp(), // Only this timestamp
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
@@ -568,7 +590,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'oil_brand': oilBrand,
         'oil_viscosity': viscosity,
         'recommended_mileage': recommendedMileage,
-        'last_updated_oil': FieldValue.serverTimestamp(),
+        'last_updated_oil': FieldValue.serverTimestamp(), // Only this timestamp
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
@@ -762,7 +784,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'next_tire_replace': Timestamp.fromDate(nextReplacementDate),
         'tire_brand': tireBrand,
         'tire_recommended_mileage': recommendedMileage,
-        'last_updated_tire': FieldValue.serverTimestamp(),
+        'last_updated_tire': FieldValue.serverTimestamp(), // Only this timestamp
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
@@ -952,7 +974,7 @@ class _ServiceSchedulePageState extends State<ServiceSchedulePage> {
         'next_service': Timestamp.fromDate(nextServiceDate),
         'service_type': serviceType,
         'other_maintenance': otherMaintenance,
-        'last_updated_service': FieldValue.serverTimestamp(),
+        'last_updated_service': FieldValue.serverTimestamp(), // Only this timestamp
         'updated_at': FieldValue.serverTimestamp(),
         'user_id': user.uid,
         'vehicle_id': currentVehicleId,
