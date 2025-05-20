@@ -260,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'onTap': () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => ReportScreen(vehicleId: selectedVehicle?['id'])),
+            MaterialPageRoute(builder: (_) => ReportScreen(vehicleData: selectedVehicle!)),
           );
         },
       },
@@ -513,19 +513,9 @@ class _HomeScreenState extends State<HomeScreen> {
             'Reports',
             Icons.document_scanner,
             () {
-              // First check if we have a selected vehicle
-              if (selectedVehicle == null ||
-                  selectedVehicle?['id'] == null) {
-                _showSnack("Please select a vehicle first");
-                return;
-              }
-
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ReportScreen(vehicleId: selectedVehicle?['id']),
-                ),
+                MaterialPageRoute(builder: (_) => ReportScreen(vehicleData: selectedVehicle!)),
               );
             },
           ),
