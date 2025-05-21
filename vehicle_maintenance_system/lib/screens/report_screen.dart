@@ -463,7 +463,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         title: const Text(
-                          'UPCOMING SERVICES',
+                          'Maintenance & UPCOMING SERVICES',
                           style: TextStyle(
                             color: kYellow,
                             fontSize: 14,

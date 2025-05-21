@@ -128,7 +128,6 @@ class PredictionPage extends StatelessWidget {
       'mileage': mileage,
       'timestamp': FieldValue.serverTimestamp(),
       'fullResult': predictionResult,
-      'userId': user.uid,
       'user_id': user.uid,
     };
 

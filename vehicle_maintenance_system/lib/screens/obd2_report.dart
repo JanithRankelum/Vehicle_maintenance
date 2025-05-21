@@ -29,7 +29,7 @@ class OBD2ReportPage extends StatelessWidget {
       backgroundColor: kBackground,
       appBar: AppBar(
         title: const Text(
-          'VEHICLE REPORTS',
+          'OBD2 REPORTS',
           style: TextStyle(
             color: kYellow,
             fontWeight: FontWeight.bold,
@@ -39,16 +39,16 @@ class OBD2ReportPage extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('predictions')
-            .orderBy('timestamp', descending: true) // Newest first
-            .snapshots(),
-        builder: (context, snapshot) {
+body: StreamBuilder<QuerySnapshot>(
+  stream: FirebaseFirestore.instance
+  .collection('predictions')
+  .where('user_id', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+  .orderBy('timestamp', descending: true)
+  .snapshots(),
+
+  builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.white)));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -71,8 +71,7 @@ class OBD2ReportPage extends StatelessWidget {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
               final timestamp = data['timestamp'] as Timestamp;
-              final formattedDate = DateFormat('MMM dd, yyyy - hh:mm a')
-                  .format(timestamp.toDate());
+              final formattedDate = DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate());
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
