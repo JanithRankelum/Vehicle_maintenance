@@ -32,7 +32,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
 
   Future<void> fetchMaintenanceData() async {
     final user = FirebaseAuth.instance.currentUser;
-    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
+    final vehicleId =
+        widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
     if (user != null && vehicleId != null) {
       try {
@@ -75,7 +76,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
 
   Future<void> fetchServiceData() async {
     final user = FirebaseAuth.instance.currentUser;
-    final vehicleId = widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
+    final vehicleId =
+        widget.vehicleData['vehicle_id'] ?? widget.vehicleData['id'];
 
     if (user != null && vehicleId != null) {
       try {
@@ -139,7 +141,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
     required Timestamp? serviceDate,
     required Timestamp? lastUpdated,
   }) {
-    final isOverdue = serviceDate != null && serviceDate.toDate().isBefore(DateTime.now());
+    final isOverdue =
+        serviceDate != null && serviceDate.toDate().isBefore(DateTime.now());
 
     return Container(
       decoration: BoxDecoration(
@@ -180,7 +183,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
                         'Scheduled: ${_formatTimestamp(serviceDate)}',
                         style: TextStyle(
                           color: isOverdue ? Colors.red[300] : Colors.white,
-                          fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                          fontWeight:
+                              isOverdue ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -260,32 +264,32 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
             ),
             const SizedBox(height: 12),
             _buildInfoTile(
-              "Insurance Company", 
+              "Insurance Company",
               updatedData?['insurance_company'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_insurance']),
             ),
             _buildInfoTile(
-              "Insurance Policy Number", 
+              "Insurance Policy Number",
               updatedData?['insurance_policy_number'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_insurance']),
             ),
             _buildInfoTile(
-              "Last Oil Change", 
+              "Last Oil Change",
               updatedData?['last_oil_change'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_oil']),
             ),
             _buildInfoTile(
-              "Last Service", 
+              "Last Service",
               updatedData?['last_service'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_service']),
             ),
             _buildInfoTile(
-              "Last Tire Replacement", 
+              "Last Tire Replacement",
               updatedData?['last_tire_replace'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_tire']),
             ),
             _buildInfoTile(
-              "Other Maintenance", 
+              "Other Maintenance",
               updatedData?['other_maintenance'] ?? 'Not specified',
               _formatTimestamp(serviceData?['last_updated_service']),
             ),
@@ -303,7 +307,7 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
             const SizedBox(height: 12),
             _buildServiceDetailCard(
               title: "Insurance Expiry",
-              value: serviceData?['insurance_company'] != null 
+              value: serviceData?['insurance_company'] != null
                   ? "${serviceData?['insurance_company']} (${serviceData?['insurance_policy_number']})"
                   : null,
               serviceDate: serviceData?['insurance_expiry_date'],
@@ -349,7 +353,8 @@ class _MaintenanceInfoScreenState extends State<MaintenanceInfoScreen> {
           boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           title: Text(
             label,
             style: TextStyle(
