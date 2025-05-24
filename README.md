@@ -35,7 +35,7 @@ The app connects to any standard OBD-II Bluetooth device to:
 > ![Home Screen2](![Home2](https://github.com/user-attachments/assets/87b7d155-09e7-42ab-af4c-b1a9c194c654)
 > ![OBD2 Diagnosis](![obd2](https://github.com/user-attachments/assets/a0c2e449-86d9-47b0-8f12-97b78875f1f3))
 > > ![OBD2 Dashboard](![Prediction](assets/screenshots/Prediction.png)
-> ![OBD2 Predictions](![Prediction](assets/screenshots/Prediction.png)
+> ![OBD2 Predictions](![Prediction](vehicle_maintenance_system/assets/screenshots/Prediction.png)
 
 ## 🛠 Setup Instructions
 
