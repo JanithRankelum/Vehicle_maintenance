@@ -54,7 +54,7 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
       await _sendCommand('ATS0'); // Spaces off
 
       setState(() => _isConnected = true);
-      
+
       // Start polling data every second
       _dataTimer = Timer.periodic(Duration(milliseconds: 1000), (timer) {
         _pollAllData();
@@ -203,9 +203,9 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
                     divisions: 8,
                     color: Colors.red,
                   ),
-                  
+
                   SizedBox(height: 20),
-                  
+
                   // Throttle Gauge
                   _buildGauge(
                     title: 'THROTTLE',
@@ -216,9 +216,9 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
                     divisions: 10,
                     color: Colors.green,
                   ),
-                  
+
                   SizedBox(height: 20),
-                  
+
                   // Speed Gauge
                   _buildGauge(
                     title: 'SPEED',
@@ -229,9 +229,9 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
                     divisions: 8,
                     color: Colors.blue,
                   ),
-                  
+
                   SizedBox(height: 20),
-                  
+
                   // Boost Gauge
                   _buildGauge(
                     title: 'BOOST',
@@ -242,9 +242,9 @@ class _SendObdCommandPageState extends State<SendObdCommandPage> {
                     divisions: 10,
                     color: Colors.orange,
                   ),
-                  
+
                   SizedBox(height: 20),
-                  
+
                   // Coolant Temp Gauge
                   _buildGauge(
                     title: 'COOLANT',
