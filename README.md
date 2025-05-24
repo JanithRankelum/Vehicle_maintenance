@@ -42,6 +42,7 @@ The app connects to any standard OBD-II Bluetooth device to:
 1. **Clone the repo**  
 
 git clone https://github.com/yourusername/Vehicle_maintenance.git
+
 cd Vehicle_maintenance
 
 2. **Install dependencies**
